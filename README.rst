@@ -1,8 +1,8 @@
 ITKIOZ5
 =================================
 
-.. image:: https://dev.azure.com/InsightSoftwareConsortium/ITKModules/_apis/build/status/itkioz5?branchName=master
-    :target: https://dev.azure.com/InsightSoftwareConsortium/ITKModules/_build/latest?definitionId=8&branchName=master
+.. image:: https://dev.azure.com/ITKIOZ5/ITKIOZ5/_apis/build/status/InsightSoftwareConsortium.ITKIOZ5?branchName=master
+    :target: https://dev.azure.com/ITKIOZ5/ITKIOZ5/_build/latest?definitionId=1&branchName=master
     :alt:    Build Status
 
 .. image:: https://img.shields.io/pypi/v/itk-ioz5.svg
