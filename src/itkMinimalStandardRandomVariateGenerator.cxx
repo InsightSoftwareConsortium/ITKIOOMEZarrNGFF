@@ -1,6 +1,6 @@
 /*=========================================================================
  *
- *  Copyright Insight Software Consortium
+ *  Copyright NumFOCUS
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,32 +22,28 @@ namespace itk
 namespace Statistics
 {
 
-MinimalStandardRandomVariateGenerator
-::MinimalStandardRandomVariateGenerator()
+MinimalStandardRandomVariateGenerator ::MinimalStandardRandomVariateGenerator()
 {
   this->m_NormalGenerator = NormalGeneratorType::New();
-  this->Initialize( 1 );
+  this->Initialize(1);
 }
 
 void
-MinimalStandardRandomVariateGenerator
-::Initialize(int randomSeed)
+MinimalStandardRandomVariateGenerator ::Initialize(int randomSeed)
 {
-  this->m_NormalGenerator->Initialize( randomSeed );
+  this->m_NormalGenerator->Initialize(randomSeed);
 }
 
 
 double
-MinimalStandardRandomVariateGenerator
-::GetVariate()
+MinimalStandardRandomVariateGenerator ::GetVariate()
 {
   return this->m_NormalGenerator->GetVariate();
 }
 
 
 void
-MinimalStandardRandomVariateGenerator
-::PrintSelf(std::ostream & os, Indent indent) const
+MinimalStandardRandomVariateGenerator ::PrintSelf(std::ostream & os, Indent indent) const
 {
   Superclass::PrintSelf(os, indent);
 }

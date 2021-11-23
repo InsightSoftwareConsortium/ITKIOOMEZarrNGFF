@@ -1,3 +1,3 @@
-itk_wrap_module(IOZ5)
+itk_wrap_module(IOOMEZarrNGFF)
 itk_auto_load_submodules()
 itk_end_wrap_module()

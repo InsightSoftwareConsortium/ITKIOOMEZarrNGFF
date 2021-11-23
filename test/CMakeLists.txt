@@ -1,21 +1,21 @@
 itk_module_test()
 
-set(IOZ5Tests
+set(IOOMEZarrNGFFTests
   itkMinimalStandardRandomVariateGeneratorTest.cxx
   itkMyFilterTest.cxx
   )
 
-CreateTestDriver(IOZ5 "${IOZ5-Test_LIBRARIES}" "${IOZ5Tests}")
+CreateTestDriver(IOOMEZarrNGFF "${IOOMEZarrNGFF-Test_LIBRARIES}" "${IOOMEZarrNGFFTests}")
 
 itk_add_test(NAME itkMinimalStandardRandomVariateGeneratorTest
-  COMMAND IOZ5TestDriver itkMinimalStandardRandomVariateGeneratorTest
+  COMMAND IOOMEZarrNGFFTestDriver itkMinimalStandardRandomVariateGeneratorTest
   )
 
 itk_add_test(NAME itkMyFilterTest
-  COMMAND IOZ5TestDriver
+  COMMAND IOOMEZarrNGFFTestDriver
     --compare
-    ${ITK_TEST_OUTPUT_DIR}/itkMyFilterTestOutput.mha
     DATA{Baseline/itkMyFilterTestOutput.mha}
+    ${ITK_TEST_OUTPUT_DIR}/itkMyFilterTestOutput.mha
   itkMyFilterTest
     ${ITK_TEST_OUTPUT_DIR}/itkMyFilterTestOutput.mha
   )

@@ -1,5 +1,5 @@
-set(IOZ5_SRCS
+set(IOOMEZarrNGFF_SRCS
   itkMinimalStandardRandomVariateGenerator.cxx
   )
 
-itk_module_add_library(IOZ5 ${IOZ5_SRCS})
+itk_module_add_library(IOOMEZarrNGFF ${IOOMEZarrNGFF_SRCS})

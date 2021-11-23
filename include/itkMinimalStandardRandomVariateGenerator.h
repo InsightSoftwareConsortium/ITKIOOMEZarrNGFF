@@ -1,6 +1,6 @@
 /*=========================================================================
  *
- *  Copyright Insight Software Consortium
+ *  Copyright NumFOCUS
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 #include "itkIntTypes.h"
 #include "itkObjectFactory.h"
 #include "itkRandomVariateGeneratorBase.h"
-#include "IOZ5Export.h"
+#include "IOOMEZarrNGFFExport.h"
 #include "itkNormalVariateGenerator.h"
 
 namespace itk
@@ -48,44 +48,45 @@ namespace Statistics
  * 2147483647\f$, the Minimial Standard configuration recommended by Park,
  * Miller and Stockmeyer in 1993.
  *
- * \ingroup IOZ5
+ * \ingroup IOOMEZarrNGFF
  */
-class IOZ5_EXPORT MinimalStandardRandomVariateGenerator:
-  public RandomVariateGeneratorBase
+class IOOMEZarrNGFF_EXPORT MinimalStandardRandomVariateGenerator : public RandomVariateGeneratorBase
 {
 public:
-  ITK_DISALLOW_COPY_AND_ASSIGN(MinimalStandardRandomVariateGenerator);
+  ITK_DISALLOW_COPY_AND_MOVE(MinimalStandardRandomVariateGenerator);
 
-  /** Standard class typedefs. */
+  /** Standard class aliases. */
   using Self = MinimalStandardRandomVariateGenerator;
   using Superclass = RandomVariateGeneratorBase;
-  using Pointer = SmartPointer< Self >;
-  using ConstPointer = SmartPointer< const Self >;
+  using Pointer = SmartPointer<Self>;
+  using ConstPointer = SmartPointer<const Self>;
 
   using IntegerType = uint32_t;
 
   using NormalGeneratorType = itk::Statistics::NormalVariateGenerator;
 
   /** Run-time type information (and related methods). */
-  itkTypeMacro( MinimalStandardRandomVariateGenerator, RandomVariateGeneratorBase);
+  itkTypeMacro(MinimalStandardRandomVariateGenerator, RandomVariateGeneratorBase);
 
   /** Method for creation through the object factory.  */
-  itkNewMacro( Self );
+  itkNewMacro(Self);
 
   /** initialize with a simple IntegerType */
-  void Initialize(int randomSeed);
+  void
+  Initialize(int randomSeed);
 
   /** Get a variate in the range [0, 1] */
-  double GetVariate() override;
+  double
+  GetVariate() override;
 
 protected:
   MinimalStandardRandomVariateGenerator();
   ~MinimalStandardRandomVariateGenerator() override = default;
 
-  void PrintSelf(std::ostream & os, Indent indent) const override;
+  void
+  PrintSelf(std::ostream & os, Indent indent) const override;
 
 private:
-
   NormalGeneratorType::Pointer m_NormalGenerator;
 };
 

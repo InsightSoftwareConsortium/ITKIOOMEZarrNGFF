@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 from os import sys
 
 try:
@@ -12,15 +11,15 @@ except ImportError:
     sys.exit(1)
 
 setup(
-    name='itk-ioz5',
+    name='itk-ioomezarrngff',
     version='0.1.0',
-    author='Matt McCormick',
-    author_email='matt.mccormick@kitware.com',
+    author='Insight Software Consortium',
+    author_email='itk+community@discourse.itk.org',
     packages=['itk'],
     package_dir={'itk': 'itk'},
-    download_url=r'https://github.com/InsightSoftwareConsortium/ITKIOZ5',
-    description=r'IO for images stored in zarr and n5 file formats.',
-    long_description='ITK is an open-source, cross-platform library that provides developers with an extensive suite of software tools for image analysis. Developed through extreme programming methodologies, ITK employs leading-edge algorithms for registering and segmenting multidimensional scientific images.',
+    download_url=r'https://github.com/InsightSoftwareConsortium/ITKIOOMEZarrNGFF',
+    description=r'IO for images stored in zarr format.',
+    long_description='ITK remote module for IO of images stored in zarr file format.',
     classifiers=[
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
@@ -44,6 +43,6 @@ setup(
     keywords='ITK InsightToolkit',
     url=r'https://itk.org/',
     install_requires=[
-        r'itk>=5.0.0.post1'
+        r'itk>=5.2.1.post1'
     ]
     )

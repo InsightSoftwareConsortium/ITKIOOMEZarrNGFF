@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.10.2)
-project(IOZ5)
+cmake_minimum_required(VERSION 3.16.3)
+project(IOOMEZarrNGFF)
 
-set(IOZ5_LIBRARIES IOZ5)
+set(IOOMEZarrNGFF_LIBRARIES IOOMEZarrNGFF)
 
 if(NOT ITK_SOURCE_DIR)
   find_package(ITK REQUIRED)

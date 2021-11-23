@@ -3,15 +3,15 @@
 get_filename_component(MY_CURRENT_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 file(READ "${MY_CURRENT_DIR}/README.rst" DOCUMENTATION)
 
-# itk_module() defines the module dependencies in IOZ5
-# IOZ5 depends on ITKCommon
-# The testing module in IOZ5 depends on ITKTestKernel
-# and ITKMetaIO(besides IOZ5 and ITKCore)
+# itk_module() defines the module dependencies in IOOMEZarrNGFF
+# IOOMEZarrNGFF depends on ITKCommon
+# The testing module in IOOMEZarrNGFF depends on ITKTestKernel
+# and ITKMetaIO(besides IOOMEZarrNGFF and ITKCore)
 # By convention those modules outside of ITK are not prefixed with
 # ITK.
 
 # define the dependencies of the include module and the tests
-itk_module(IOZ5
+itk_module(IOOMEZarrNGFF
   DEPENDS
     ITKCommon
     ITKStatistics
