@@ -40,7 +40,7 @@ OMEZarrNGFFImageIOFactory::GetITKSourceVersion() const
 const char *
 OMEZarrNGFFImageIOFactory::GetDescription() const
 {
-  return "OMEZarrNGFF ImageIO Factory, allows the loading of Open Microscopy Environment Zarr Next Generation File Format images";
+  return "OMEZarrNGFF ImageIO Factory, allows the loading of images in Open Microscopy Environment Zarr Next Generation File Format";
 }
 
 // Undocumented API used to register during static initialization.
@@ -49,7 +49,7 @@ OMEZarrNGFFImageIOFactory::GetDescription() const
 static bool OMEZarrNGFFImageIOFactoryHasBeenRegistered;
 
 void IOOMEZarrNGFF_EXPORT
-     OMEZarrNGFFImageIOFactoryRegister__Private()
+OMEZarrNGFFImageIOFactoryRegister__Private()
 {
   if (!OMEZarrNGFFImageIOFactoryHasBeenRegistered)
   {

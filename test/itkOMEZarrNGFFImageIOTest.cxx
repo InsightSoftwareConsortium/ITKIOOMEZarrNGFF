@@ -38,21 +38,17 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
   const char * inputFileName = argv[1];
   const char * outputFileName = argv[2];
 
-  constexpr unsigned int Dimension = 3;
-  using PixelType = short;
+  constexpr unsigned int Dimension = 4;
+  using PixelType = float;
   using ImageType = itk::Image<PixelType, Dimension>;
 
   using ReaderType = itk::ImageFileReader<ImageType>;
   ReaderType::Pointer reader = ReaderType::New();
 
-  // force use of zarrIO
-  using IOType = itk::OMEZarrNGFFImageIO;
-  IOType::Pointer zarrIO = IOType::New();
+  // we will need to force use of zarrIO for either reading or writing
+  itk::OMEZarrNGFFImageIO::Pointer zarrIO = itk::OMEZarrNGFFImageIO::New();
 
   ITK_EXERCISE_BASIC_OBJECT_METHODS(zarrIO, OMEZarrNGFFImageIO, ImageIOBase);
-
-
-  reader->SetImageIO(zarrIO);
 
   // check usability of dimension (for coverage)
   if (!zarrIO->SupportsDimension(3))
@@ -61,7 +57,11 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
     return EXIT_FAILURE;
   }
 
-  // read the file
+  if (zarrIO->CanReadFile(inputFileName))
+  {
+    reader->SetImageIO(zarrIO);
+  }
+
   reader->SetFileName(inputFileName);
   try
   {
@@ -71,26 +71,24 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
   {
     std::cerr << "Exception in the file reader " << std::endl;
     std::cerr << error << std::endl;
-    if (argc == 3) // should fail
-    {
-      return EXIT_SUCCESS;
-    }
     return EXIT_FAILURE;
   }
 
   ImageType::Pointer image = reader->GetOutput();
   image->Print(std::cout);
 
-  ImageType::RegionType region = image->GetLargestPossibleRegion();
-  std::cout << "region " << region;
 
-  // Generate test image
   using WriterType = itk::ImageFileWriter<ImageType>;
   WriterType::Pointer writer = WriterType::New();
   writer->SetInput(reader->GetOutput());
   writer->SetFileName(outputFileName);
-  ITK_TRY_EXPECT_NO_EXCEPTION(writer->Update());
 
+  if (zarrIO->CanWriteFile(outputFileName))
+  {
+    writer->SetImageIO(zarrIO);
+  }
+
+  ITK_TRY_EXPECT_NO_EXCEPTION(writer->Update());
 
   std::cout << "Test finished" << std::endl;
   return EXIT_SUCCESS;
