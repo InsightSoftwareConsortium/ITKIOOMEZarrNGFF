@@ -39,7 +39,7 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
 
   constexpr unsigned int Dimension = 3;
   using PixelType = itk::Vector<float, 31>;
-  using ImageType = itk::Image<float, Dimension>;
+  using ImageType = itk::Image<PixelType, Dimension>;
 
   using ReaderType = itk::ImageFileReader<ImageType>;
   ReaderType::Pointer reader = ReaderType::New();

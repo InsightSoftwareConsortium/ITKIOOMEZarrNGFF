@@ -53,6 +53,8 @@ public:
   /** Run-time type information (and related methods). */
   itkTypeMacro(OMEZarrNGFFImageIO, ImageIOBase);
 
+  static constexpr unsigned MaximumDimension = 5; // OME-NGFF specifies up to 5D data
+
   /** The different types of ImageIO's can support data of varying
    * dimensionality. For example, some file formats are strictly 2D
    * while others can support 2D, 3D, or even n-D. This method returns
@@ -61,7 +63,7 @@ public:
   bool
   SupportsDimension(unsigned long dimension) override
   {
-    if (dimension <= 5)
+    if (dimension <= MaximumDimension)
     {
       return true;
     }
@@ -130,6 +132,24 @@ protected:
       largestRegion.SetSize(i, this->GetDimensions(i));
     }
     return largestRegion;
+  }
+
+  int m_NCID = 0;
+
+  const std::vector<std::string> dimensionNames = { "x", "y", "z", "c", "t" };
+
+  std::string m_ncFilename;
+
+  const char *
+  getNCFilename(const std::string & filename)
+  {
+    m_ncFilename = "file://" + filename + "#mode=zarr,noxarray,file"; // TODO: support S3
+    return m_ncFilename.c_str();
+  }
+  const char *
+  getNCFilename(const char * filename)
+  {
+    return getNCFilename(std::string(filename));
   }
 
 private:
