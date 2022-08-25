@@ -22,7 +22,6 @@
 #include "itkOMEZarrNGFFImageIO.h"
 #include "itkTestingMacros.h"
 
-
 #define SPECIFIC_IMAGEIO_MODULE_TEST
 
 int
@@ -38,12 +37,13 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
   const char * inputFileName = argv[1];
   const char * outputFileName = argv[2];
 
-  constexpr unsigned int Dimension = 4;
-  using PixelType = float;
-  using ImageType = itk::Image<PixelType, Dimension>;
+  constexpr unsigned int Dimension = 3;
+  using PixelType = itk::Vector<float, 31>;
+  using ImageType = itk::Image<float, Dimension>;
 
   using ReaderType = itk::ImageFileReader<ImageType>;
   ReaderType::Pointer reader = ReaderType::New();
+  reader->SetFileName(inputFileName);
 
   // we will need to force use of zarrIO for either reading or writing
   itk::OMEZarrNGFFImageIO::Pointer zarrIO = itk::OMEZarrNGFFImageIO::New();
@@ -61,18 +61,7 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
   {
     reader->SetImageIO(zarrIO);
   }
-
-  reader->SetFileName(inputFileName);
-  try
-  {
-    reader->Update();
-  }
-  catch (itk::ExceptionObject & error)
-  {
-    std::cerr << "Exception in the file reader " << std::endl;
-    std::cerr << error << std::endl;
-    return EXIT_FAILURE;
-  }
+  ITK_TRY_EXPECT_NO_EXCEPTION(reader->Update());
 
   ImageType::Pointer image = reader->GetOutput();
   image->Print(std::cout);
@@ -87,7 +76,6 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
   {
     writer->SetImageIO(zarrIO);
   }
-
   ITK_TRY_EXPECT_NO_EXCEPTION(writer->Update());
 
   std::cout << "Test finished" << std::endl;

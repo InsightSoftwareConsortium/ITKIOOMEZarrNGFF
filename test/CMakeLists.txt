@@ -1,6 +1,7 @@
 itk_module_test()
 
 set(IOOMEZarrNGFFTests
+  itkOMEZarrNGFFImageIOTest.cxx
   )
 
 CreateTestDriver(IOOMEZarrNGFF "${IOOMEZarrNGFF-Test_LIBRARIES}" "${IOOMEZarrNGFFTests}")

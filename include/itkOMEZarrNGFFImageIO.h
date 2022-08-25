@@ -29,7 +29,7 @@ namespace itk
 /** \class OMEZarrNGFFImageIO
  *
  * \brief Read and write MEZarrNGFF images.
- * 
+ *
  * Open Microscopy Environment Zarr Next Generation File Format
  * specification can be found at https://github.com/ome/ngff
  *
@@ -118,6 +118,19 @@ protected:
 
   void
   PrintSelf(std::ostream & os, Indent indent) const override;
+
+  ImageIORegion
+  GetLargestRegion()
+  {
+    const unsigned int nDims = this->GetNumberOfDimensions();
+    ImageIORegion      largestRegion(nDims);
+    for (unsigned int i = 0; i < nDims; ++i)
+    {
+      largestRegion.SetIndex(i, 0);
+      largestRegion.SetSize(i, this->GetDimensions(i));
+    }
+    return largestRegion;
+  }
 
 private:
   // We don't need any private members here

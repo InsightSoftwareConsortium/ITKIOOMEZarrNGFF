@@ -11,6 +11,7 @@ file(READ "${MY_CURRENT_DIR}/README.rst" DOCUMENTATION)
 itk_module(IOOMEZarrNGFF
   DEPENDS
     ITKIOImageBase
+    ITKZLIB
   TEST_DEPENDS
     ITKTestKernel
     ITKMetaIO
