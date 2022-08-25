@@ -2,28 +2,29 @@ name: Build, test, package
 
 on: [push,pull_request]
 
+env:
+  itk-git-tag: "0827484a4369d273eedee3e07657ef452acb1110"
+  itk-wheel-tag: "v5.3rc04.post3"
+
 jobs:
   build-test-cxx:
     runs-on: ${{ matrix.os }}
     strategy:
       max-parallel: 3
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
+        os: [windows-2019, macos-11]
         include:
           - os: ubuntu-20.04
             c-compiler: "gcc"
             cxx-compiler: "g++"
-            itk-git-tag: "v5.2.1"
             cmake-build-type: "MinSizeRel"
           - os: windows-2019
             c-compiler: "cl.exe"
             cxx-compiler: "cl.exe"
-            itk-git-tag: "v5.2.1"
             cmake-build-type: "Release"
-          - os: macos-10.15
+          - os: macos-11
             c-compiler: "clang"
             cxx-compiler: "clang++"
-            itk-git-tag: "v5.2.1"
             cmake-build-type: "MinSizeRel"
 
     steps:
@@ -39,6 +40,25 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install ninja
 
+    - name: Install Linux-specific build dependencies
+      if: matrix.os == 'ubuntu-20.04'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libcurl4-openssl-dev m4 libzip-dev
+
+    - name: Install MacOS-specific build dependencies
+      if: matrix.os == 'macos-10.15'
+      run: |
+        brew update
+        brew install m4 openssl@1.1
+
+    - name: Install Windows-specific build dependencies
+      if: matrix.os == 'windows-2019'
+      shell: bash
+      run: |
+        curl -L "https://data.kitware.com/api/v1/file/6320885f11dab81428207d00/download/m4-win.zip" -o "m4-win.zip"
+        7z x m4-win.zip -o/c/P/m4 -aoa -r
+
     - name: Get specific version of CMake, Ninja
       uses: lukka/get-cmake@v3.18.3
 
@@ -47,7 +67,7 @@ jobs:
         cd ..
         git clone https://github.com/InsightSoftwareConsortium/ITK.git
         cd ITK
-        git checkout ${{ matrix.itk-git-tag }}
+        git checkout ${{ env.itk-git-tag }}
 
     - name: Build ITK
       if: matrix.os != 'windows-2019'
@@ -126,6 +146,7 @@ jobs:
       if: matrix.os == 'windows-2019'
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+        set PATH="%PATH%;C:\P\m4"
         ctest --output-on-failure -j 2 -V -S dashboard.cmake
       shell: cmd
 
@@ -134,9 +155,7 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        python-version: [36, 37, 38, 39]
-        include:
-          - itk-python-git-tag: "v5.2.1.post1"
+        python-version: [37, 38, 39, 310]
 
     steps:
     - uses: actions/checkout@v2
@@ -157,8 +176,16 @@ jobs:
 
     - name: 'Build 🐍 Python 📦 package'
       run: |
-        export ITK_PACKAGE_VERSION=${{ matrix.itk-python-git-tag }}
-        ./dockcross-manylinux-download-cache-and-build-module-wheels.sh cp${{ matrix.python-version }}
+        sudo apt-get update
+        sudo apt-get install -y libcurl4-openssl-dev m4 libzip-dev
+        export OPENSSL_INCLUDE_DIR=/usr/include
+        export OPENSSL_CRYPTO_LIBRARY=/usr/lib/x86_64-linux-gnu/libcrypto.so
+        export ITK_PACKAGE_VERSION=${{ env.itk-wheel-tag }}
+        for tarball in "" "-manylinux2014"; do
+          rm -rf ITKPythonPackage
+          export TARBALL_SPECIALIZATION=${tarball}
+          ./dockcross-manylinux-download-cache-and-build-module-wheels.sh cp${{ matrix.python-version }}
+        done
 
     - name: Publish Python package as GitHub Artifact
       uses: actions/upload-artifact@v1
@@ -167,19 +194,16 @@ jobs:
         path: dist
 
   build-macos-python-packages:
-    runs-on: macos-10.15
+    runs-on: macos-11
     strategy:
       max-parallel: 2
-      matrix:
-        include:
-          - itk-python-git-tag: "v5.2.1.post1"
 
     steps:
     - uses: actions/checkout@v2
 
     - name: 'Specific XCode version'
       run: |
-        sudo xcode-select -s "/Applications/Xcode_11.7.app"
+        sudo xcode-select -s "/Applications/Xcode_13.2.1.app"
 
     - name: Get specific version of CMake, Ninja
       uses: lukka/get-cmake@v3.18.3
@@ -191,7 +215,11 @@ jobs:
 
     - name: 'Build 🐍 Python 📦 package'
       run: |
-        export ITK_PACKAGE_VERSION=${{ matrix.itk-python-git-tag }}
+        brew update
+        brew install m4 openssl@1.1
+        ls -l /usr/local/opt/openssl@1.1
+        export OPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1
+        export ITK_PACKAGE_VERSION=${{ env.itk-wheel-tag }}
         export MACOSX_DEPLOYMENT_TARGET=10.9
         ./macpython-download-cache-and-build-module-wheels.sh
 
@@ -206,9 +234,7 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        python-version-minor: [6, 7, 8, 9]
-        include:
-          - itk-python-git-tag: "v5.2.1.post1"
+        python-version-minor: [7, 8, 9, 10]
 
     steps:
     - name: Get specific version of CMake, Ninja
@@ -229,19 +255,22 @@ jobs:
       run: |
         mv im ../../
         cd ../../im
-        curl -L "https://github.com/InsightSoftwareConsortium/ITKPythonBuilds/releases/download/${{ matrix.itk-python-git-tag }}/ITKPythonBuilds-windows.zip" -o "ITKPythonBuilds-windows.zip"
+        curl -L "https://github.com/InsightSoftwareConsortium/ITKPythonBuilds/releases/download/${{ env.itk-wheel-tag }}/ITKPythonBuilds-windows.zip" -o "ITKPythonBuilds-windows.zip"
         7z x ITKPythonBuilds-windows.zip -o/c/P -aoa -r
         curl -L "https://data.kitware.com/api/v1/file/5c0ad59d8d777f2179dd3e9c/download" -o "doxygen-1.8.11.windows.bin.zip"
         7z x doxygen-1.8.11.windows.bin.zip -o/c/P/doxygen -aoa -r
         curl -L "https://data.kitware.com/api/v1/file/5bbf87ba8d777f06b91f27d6/download/grep-win.zip" -o "grep-win.zip"
         7z x grep-win.zip -o/c/P/grep -aoa -r
+        curl -L "https://data.kitware.com/api/v1/file/6320885f11dab81428207d00/download/m4-win.zip" -o "m4-win.zip"
+        head m4-win.zip
+        7z x m4-win.zip -o/c/P/m4 -aoa -r
 
     - name: 'Build 🐍 Python 📦 package'
       shell: cmd
       run: |
         cd ../../im
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        set PATH="C:\P\grep;%PATH%"
+        set PATH="C:\P\grep;%PATH%;C:\P\m4"
         set CC=cl.exe
         set CXX=cl.exe
         C:\Python3${{ matrix.python-version-minor }}-x64\python.exe C:\P\IPP\scripts\windows_build_module_wheels.py --py-envs "3${{ matrix.python-version-minor }}-x64" --no-cleanup

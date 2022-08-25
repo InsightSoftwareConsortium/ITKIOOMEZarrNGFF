@@ -6,7 +6,7 @@
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
  *
- *         http://www.apache.org/licenses/LICENSE-2.0.txt
+ *         https://www.apache.org/licenses/LICENSE-2.0.txt
  *
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
@@ -53,6 +53,8 @@ public:
   /** Run-time type information (and related methods). */
   itkTypeMacro(OMEZarrNGFFImageIO, ImageIOBase);
 
+  static constexpr unsigned MaximumDimension = 5; // OME-NGFF specifies up to 5D data
+
   /** The different types of ImageIO's can support data of varying
    * dimensionality. For example, some file formats are strictly 2D
    * while others can support 2D, 3D, or even n-D. This method returns
@@ -61,7 +63,7 @@ public:
   bool
   SupportsDimension(unsigned long dimension) override
   {
-    if (dimension <= 5)
+    if (dimension <= MaximumDimension)
     {
       return true;
     }
@@ -130,6 +132,29 @@ protected:
       largestRegion.SetSize(i, this->GetDimensions(i));
     }
     return largestRegion;
+  }
+
+  int m_NCID = 0;
+
+  const std::vector<std::string> dimensionNames = { "x", "y", "z", "c", "t" };
+
+  std::string m_ncFilename;
+
+  const char *
+  getNCFilename(const std::string & filename)
+  {
+    std::string mode = "file";
+    if (filename.substr(filename.length() - 4) == ".zip") // TODO: handle uppercase and mixed case
+    {
+      mode = "zip";
+    }
+    m_ncFilename = "file://" + filename + "#mode=zarr,noxarray," + mode; // TODO: support S3
+    return m_ncFilename.c_str();
+  }
+  const char *
+  getNCFilename(const char * filename)
+  {
+    return getNCFilename(std::string(filename));
   }
 
 private:
