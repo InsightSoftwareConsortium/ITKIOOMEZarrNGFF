@@ -20,10 +20,10 @@
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkOMEZarrNGFFImageIO.h"
+#include "itkOMEZarrNGFFImageIOFactory.h"
 #include "itkTestingMacros.h"
 #include "itkImageIOBase.h"
 
-#define SPECIFIC_IMAGEIO_MODULE_TEST
 
 template <typename PixelType, unsigned Dimension>
 int
@@ -102,6 +102,8 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
   }
   const char * inputFileName = argv[1];
   const char * outputFileName = argv[2];
+
+  itk::OMEZarrNGFFImageIOFactory::RegisterOneFactory();
 
   using ImageType = itk::Image<unsigned char, 3>;
   auto imageReader = itk::ImageFileReader<ImageType>::New();

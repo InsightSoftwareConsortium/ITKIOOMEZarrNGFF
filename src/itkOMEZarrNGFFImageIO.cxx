@@ -147,6 +147,7 @@ itkToNetCDFComponentType(const IOComponentEnum itkComponentType)
 bool
 OMEZarrNGFFImageIO::CanReadFile(const char * filename)
 {
+  return this->HasSupportedWriteExtension(filename, true);
   // if (!this->HasSupportedWriteExtension(filename, true))
   //{
   //  return false;
