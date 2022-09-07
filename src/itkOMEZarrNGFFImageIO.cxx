@@ -249,9 +249,12 @@ void
 OMEZarrNGFFImageIO::Read(void * buffer)
 {
   int r;
-  if (this->GetLargestRegion() != m_IORegion)
+
+  // This comparison needs to be done carefully, we can compare 3D and 6D regions
+  if (this->GetLargestRegion().GetNumberOfPixels() != m_IORegion.GetNumberOfPixels())
   {
     // Stream the data in chunks
+    itkExceptionMacro(<< "Streamed reading is not yet implemented");
   }
   else
   {
