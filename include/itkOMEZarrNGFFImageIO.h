@@ -143,7 +143,12 @@ protected:
   const char *
   getNCFilename(const std::string & filename)
   {
-    m_ncFilename = "file://" + filename + "#mode=zarr,noxarray,file"; // TODO: support S3
+    std::string mode = "file";
+    if (filename.substr(filename.length() - 4) == ".zip") // TODO: handle uppercase and mixed case
+    {
+      mode = "zip";
+    }
+    m_ncFilename = "file://" + filename + "#mode=zarr,noxarray," + mode; // TODO: support S3
     return m_ncFilename.c_str();
   }
   const char *
