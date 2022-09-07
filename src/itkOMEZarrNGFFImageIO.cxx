@@ -29,10 +29,12 @@ OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
 
 {
   this->AddSupportedWriteExtension(".zarr");
+  this->AddSupportedWriteExtension(".zr2");
   this->AddSupportedWriteExtension(".zr3");
   this->AddSupportedWriteExtension(".zip");
 
   this->AddSupportedReadExtension(".zarr");
+  this->AddSupportedReadExtension(".zr2");
   this->AddSupportedReadExtension(".zr3");
   this->AddSupportedReadExtension(".zip");
 
