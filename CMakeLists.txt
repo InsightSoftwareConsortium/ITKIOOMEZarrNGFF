@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16.3)
 cmake_policy(SET CMP0135 NEW)
-cmake_policy(SET CMP0002 OLD) # doesn't help
+# cmake_policy(SET CMP0002 OLD) # doesn't help
 
 project(IOOMEZarrNGFF)
 
