@@ -32,7 +32,7 @@ doTest(const char * inputFileName, const char * outputFileName)
   using ImageType = itk::Image<PixelType, Dimension>;
 
   using ReaderType = itk::ImageFileReader<ImageType>;
-  ReaderType::Pointer reader = ReaderType::New();
+  typename ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName(inputFileName);
 
   // we will need to force use of zarrIO for either reading or writing
@@ -53,12 +53,12 @@ doTest(const char * inputFileName, const char * outputFileName)
   }
   ITK_TRY_EXPECT_NO_EXCEPTION(reader->Update());
 
-  ImageType::Pointer image = reader->GetOutput();
+  typename ImageType::Pointer image = reader->GetOutput();
   image->Print(std::cout);
 
 
   using WriterType = itk::ImageFileWriter<ImageType>;
-  WriterType::Pointer writer = WriterType::New();
+  typename WriterType::Pointer writer = WriterType::New();
   writer->SetInput(reader->GetOutput());
   writer->SetFileName(outputFileName);
 
