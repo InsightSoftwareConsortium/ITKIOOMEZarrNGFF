@@ -164,6 +164,7 @@ set(HDF5_LIBRARIES ${ITKHDF5_LIBRARIES})
 # message("after find HDF5")
 # dump_cmake_variables("HDF5")
 
+set(BUILD_SHARED_LIBS ${_itk_build_shared} CACHE BOOL "DLLs" FORCE)
 set(BUILD_TESTSETS OFF CACHE BOOL "netCDF tests" FORCE)
 set(ENABLE_TESTS OFF CACHE BOOL "netCDF tests" FORCE)
 set(BUILD_UTILITIES OFF CACHE BOOL "netCDF tools" FORCE)
