@@ -171,7 +171,7 @@ set(BUILD_UTILITIES OFF CACHE BOOL "netCDF tools" FORCE)
 set(ENABLE_DAP2 ON CACHE BOOL "Enable LDAP2 in netCDF" FORCE)
 set(ENABLE_NCZARR_FILTERS OFF CACHE BOOL "Enable NCZARR_FILTERS in netCDF" FORCE)
 set(ENABLE_FILTER_TESTING OFF CACHE BOOL "Enable filter tests in netCDF" FORCE)
-set(ENABLE_PLUGINS OFF CACHE BOOL "Enable plugins in netCDF" FORCE) # ON breaks the Python build
+set(ENABLE_PLUGINS OFF CACHE BOOL "Enable plugins in netCDF" FORCE)
 FetchContent_Declare(
   netCDF
   GIT_REPOSITORY https://github.com/dzenanz/netcdf-c # we need a fork, otherwise it is to hard to provide HDF5 to netCDF
