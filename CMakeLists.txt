@@ -182,7 +182,13 @@ FetchContent_Declare(
 # message("HDF5 after FetchContent_Declare")
 # dump_cmake_variables("HDF5")
 
+set(saved_CXX ${CMAKE_CXX_FLAGS})
+set(saved_C ${CMAKE_C_FLAGS})
+set(CMAKE_CXX_FLAGS -w)
+set(CMAKE_C_FLAGS -w)
 FetchContent_MakeAvailable(netCDF)
+set(CMAKE_CXX_FLAGS ${saved_CXX})
+set(CMAKE_C_FLAGS ${saved_C})
 
 # message("after FetchContent_MakeAvailable")
 # dump_cmake_variables()
