@@ -19,14 +19,17 @@
 #include "itkOMEZarrNGFFImageIO.h"
 #include "itkIOCommon.h"
 #include "itkIntTypes.h"
+#include "itkByteSwapper.h"
 
-#include "netcdf.h"
+#include "tensorstore/context.h"
+#include "tensorstore/open.h"
+#include "tensorstore/index_space/dim_expression.h"
 
 namespace itk
 {
+static tensorstore::Context tsContext = tensorstore::Context::Default();
 
 OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
-
 {
   this->AddSupportedWriteExtension(".zarr");
   this->AddSupportedWriteExtension(".zr2");
@@ -51,38 +54,40 @@ OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
 }
 
 IOComponentEnum
-netCDFToITKComponentType(const nc_type netCDFComponentType)
+tensorstoreToITKComponentType(const tensorstore::DataType dtype)
 {
-  switch (netCDFComponentType)
+  switch (dtype.id())
   {
-    case NC_BYTE:
+    case tensorstore::DataTypeId::char_t:
+    case tensorstore::DataTypeId::int8_t:
       return IOComponentEnum::CHAR;
 
-    case NC_UBYTE:
+    case tensorstore::DataTypeId::byte_t:
+    case tensorstore::DataTypeId::uint8_t:
       return IOComponentEnum::UCHAR;
 
-    case NC_SHORT:
+    case tensorstore::DataTypeId::int16_t:
       return IOComponentEnum::SHORT;
 
-    case NC_USHORT:
+    case tensorstore::DataTypeId::uint16_t:
       return IOComponentEnum::USHORT;
 
-    case NC_INT:
+    case tensorstore::DataTypeId::int32_t:
       return IOComponentEnum::INT;
 
-    case NC_UINT:
+    case tensorstore::DataTypeId::uint32_t:
       return IOComponentEnum::UINT;
 
-    case NC_INT64:
+    case tensorstore::DataTypeId::int64_t:
       return IOComponentEnum::LONGLONG;
 
-    case NC_UINT64:
+    case tensorstore::DataTypeId::uint64_t:
       return IOComponentEnum::ULONGLONG;
 
-    case NC_FLOAT:
+    case tensorstore::DataTypeId::float32_t:
       return IOComponentEnum::FLOAT;
 
-    case NC_DOUBLE:
+    case tensorstore::DataTypeId::float64_t:
       return IOComponentEnum::DOUBLE;
 
     default:
@@ -90,166 +95,132 @@ netCDFToITKComponentType(const nc_type netCDFComponentType)
   }
 }
 
-nc_type
-itkToNetCDFComponentType(const IOComponentEnum itkComponentType)
+tensorstore::DataType
+itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
 {
   switch (itkComponentType)
   {
     case IOComponentEnum::UNKNOWNCOMPONENTTYPE:
-      return NC_NAT;
+      return tensorstore::dtype_v<void>;
 
     case IOComponentEnum::CHAR:
-      return NC_BYTE;
+      return tensorstore::dtype_v<int8_t>;
 
     case IOComponentEnum::UCHAR:
-      return NC_UBYTE;
+      return tensorstore::dtype_v<uint8_t>;
 
     case IOComponentEnum::SHORT:
-      return NC_SHORT;
+      return tensorstore::dtype_v<int16_t>;
 
     case IOComponentEnum::USHORT:
-      return NC_USHORT;
+      return tensorstore::dtype_v<uint16_t>;
 
     // "long" is a silly type because it basically guaranteed not to be
     // cross-platform across 32-vs-64 bit machines, but we can figure out
     // a cross-platform way of storing the information.
     case IOComponentEnum::LONG:
-      return (4 == sizeof(long)) ? NC_INT : NC_INT64;
+      if (4 == sizeof(long))
+      {
+        return tensorstore::dtype_v<int32_t>;
+      }
+      else
+      {
+        return tensorstore::dtype_v<int64_t>;
+      }
 
     case IOComponentEnum::ULONG:
-      return (4 == sizeof(long)) ? NC_UINT : NC_UINT64;
+      if (4 == sizeof(long))
+      {
+        return tensorstore::dtype_v<uint32_t>;
+      }
+      else
+      {
+        return tensorstore::dtype_v<uint64_t>;
+      }
 
     case IOComponentEnum::INT:
-      return NC_INT;
+      return tensorstore::dtype_v<int32_t>;
 
     case IOComponentEnum::UINT:
-      return NC_UINT;
+      return tensorstore::dtype_v<uint32_t>;
 
     case IOComponentEnum::LONGLONG:
-      return NC_INT64;
+      return tensorstore::dtype_v<int64_t>;
 
     case IOComponentEnum::ULONGLONG:
-      return NC_UINT64;
+      return tensorstore::dtype_v<uint64_t>;
 
     case IOComponentEnum::FLOAT:
-      return NC_FLOAT;
+      return tensorstore::dtype_v<float>;
 
     case IOComponentEnum::DOUBLE:
-      return NC_DOUBLE;
+      return tensorstore::dtype_v<double>;
 
     case IOComponentEnum::LDOUBLE:
-      return NC_NAT; // Long double not supported by netCDF
+      return tensorstore::dtype_v<void>;
 
     default:
-      return NC_NAT;
+      return tensorstore::dtype_v<void>;
   }
 }
-
 
 bool
 OMEZarrNGFFImageIO::CanReadFile(const char * filename)
 {
   return this->HasSupportedWriteExtension(filename, true);
-  // if (!this->HasSupportedWriteExtension(filename, true))
-  //{
-  //  return false;
-  //}
-
-  try
-  {
-    int result = nc_open(getNCFilename(filename), NC_NOWRITE, &m_NCID);
-    if (this->GetDebug())
-    {
-      std::cout << "netCDF error: " << nc_strerror(result) << std::endl;
-    }
-
-    if (!result) // if it was opened correctly, we should close it
-    {
-      int nVars;
-      result = nc_inq(m_NCID, nullptr, &nVars, nullptr, nullptr);
-
-      nc_close(m_NCID);
-      return !result && (nVars > 0);
-    }
-    return false;
-  }
-  catch (...) // file cannot be opened, access denied etc.
-  {
-    return false;
-  }
 }
 
-// Make netCDF call, and error check it.
-// Requires variable int r; to be defined.
-#define netCDF_call(call)                                  \
-  r = call;                                                \
-  if (r) /* error */                                       \
-  {                                                        \
-    nc_close(m_NCID); /* clean up a little */              \
-    itkExceptionMacro("netCDF error: " << nc_strerror(r)); \
-  }
+// Evaluate tensorstore future (statement) and error-check the result.
+#define TS_EVAL_CHECK(statement)                                   \
+  {                                                                \
+    auto result = statement.result();                              \
+    if (!result.ok()) /* error */                                  \
+    {                                                              \
+      itkExceptionMacro("tensorstore error: " << result.status()); \
+    }                                                              \
+  }                                                                \
+  ITK_NOOP_STATEMENT
+
+
+thread_local tensorstore::TensorStore<> store; // initialized by ReadImageInformation
 
 void
 OMEZarrNGFFImageIO::ReadImageInformation()
 {
-  if (this->m_FileName.empty())
+  auto openFuture =
+    tensorstore::Open({ { "driver", "zarr" }, { "kvstore", { { "driver", "file" }, { "path", this->m_FileName } } } },
+                      tsContext,
+                      tensorstore::OpenMode::open,
+                      tensorstore::RecheckCached{ false },
+                      tensorstore::ReadWriteMode::read);
+  TS_EVAL_CHECK(openFuture);
+  store = openFuture.value();
+  auto shape_span = store.domain().shape();
+
+  tensorstore::DataType dtype = store.dtype();
+  this->SetComponentType(tensorstoreToITKComponentType(dtype));
+
+  std::vector<int64_t> dims(shape_span.rbegin(), shape_span.rend()); // convert KJI into IJK
+  this->SetNumberOfDimensions(dims.size());
+  for (unsigned d = 0; d < dims.size(); ++d)
   {
-    itkExceptionMacro("FileName has not been set.");
+    this->SetDimensions(d, dims[d]);
   }
-
-  int r;
-  netCDF_call(nc_open(getNCFilename(this->m_FileName), NC_NOWRITE, &m_NCID));
-
-  int nDims;
-  int nVars;
-  int nAttr; // we will ignore attributes for now
-  netCDF_call(nc_inq(m_NCID, &nDims, &nVars, &nAttr, nullptr));
-
-  if (nVars == 0)
-  {
-    itkWarningMacro("The file '" << this->m_FileName << "' contains no arrays.");
-    return;
-  }
-
-  char    name[NC_MAX_NAME + 1];
-  nc_type ncType;
-  int     dimIDs[NC_MAX_VAR_DIMS];
-  netCDF_call(nc_inq_var(m_NCID, 0, name, &ncType, &nDims, dimIDs, nullptr));
-
-  if (nVars > 1)
-  {
-    itkWarningMacro("The file '" << this->m_FileName << "' contains more than one array. The first one (" << name
-                                 << ") will be read. The others will be ignored. ");
-  }
-
-  // TODO: examine all the variables, and prefer the one named 'image' or '0'
-
-  int    cDim = 0;
-  size_t len;
-  netCDF_call(nc_inq_dim(m_NCID, dimIDs[nDims - 1], name, &len));
-  if (std::string(name) == "c") // last dimension is component
-  {
-    cDim = 1;
-    this->SetNumberOfComponents(len);
-    this->SetPixelType(CommonEnums::IOPixel::VECTOR); // TODO: RGB/A, Tensor etc.
-  }
-
-  this->SetNumberOfDimensions(nDims - cDim);
-  for (unsigned d = 0; d < nDims - cDim; ++d)
-  {
-    netCDF_call(nc_inq_dim(m_NCID, dimIDs[d], name, &len));
-    this->SetDimensions(nDims - cDim - d - 1, len);
-  }
-
-  this->SetComponentType(netCDFToITKComponentType(ncType));
 }
 
+// We call tensorstoreToITKComponentType for each type.
+// Hopefully compiler will optimize it away via constant propagation and inlining.
+#define ELEMENT_READ(typeName)                                                                        \
+  else if (tensorstoreToITKComponentType(tensorstore::dtype_v<typeName>) == this->GetComponentType()) \
+  {                                                                                                   \
+    auto * p = reinterpret_cast<typeName *>(buffer);                                                  \
+    auto   arr = tensorstore::Array(p, store.domain().shape(), tensorstore::c_order);                 \
+    tensorstore::Read(store, tensorstore::UnownedToShared(arr)).value();                              \
+  }
 
 void
 OMEZarrNGFFImageIO::Read(void * buffer)
 {
-  int r;
-
   // This comparison needs to be done carefully, we can compare 3D and 6D regions
   if (this->GetLargestRegion().GetNumberOfPixels() != m_IORegion.GetNumberOfPixels())
   {
@@ -258,46 +229,19 @@ OMEZarrNGFFImageIO::Read(void * buffer)
   }
   else
   {
-    int     varID = 0; // always zero for now
-    nc_type netCDF_type = itkToNetCDFComponentType(this->GetComponentType());
-    switch (netCDF_type)
-    {
-      case NC_BYTE:
-        netCDF_call(nc_get_var_text(m_NCID, varID, static_cast<char *>(buffer)));
-        break;
-      case NC_UBYTE:
-        netCDF_call(nc_get_var_ubyte(m_NCID, varID, static_cast<unsigned char *>(buffer)));
-        break;
-      case NC_SHORT:
-        netCDF_call(nc_get_var_short(m_NCID, varID, static_cast<short *>(buffer)));
-        break;
-      case NC_USHORT:
-        netCDF_call(nc_get_var_ushort(m_NCID, varID, static_cast<unsigned short *>(buffer)));
-        break;
-      case NC_INT:
-        netCDF_call(nc_get_var_int(m_NCID, varID, static_cast<int *>(buffer)));
-        break;
-      case NC_UINT:
-        netCDF_call(nc_get_var_uint(m_NCID, varID, static_cast<unsigned int *>(buffer)));
-        break;
-      case NC_INT64:
-        netCDF_call(nc_get_var_longlong(m_NCID, varID, static_cast<long long *>(buffer)));
-        break;
-      case NC_UINT64:
-        netCDF_call(nc_get_var_ulonglong(m_NCID, varID, static_cast<unsigned long long *>(buffer)));
-        break;
-      case NC_FLOAT:
-        netCDF_call(nc_get_var_float(m_NCID, varID, static_cast<float *>(buffer)));
-        break;
-      case NC_DOUBLE:
-        netCDF_call(nc_get_var_double(m_NCID, varID, static_cast<double *>(buffer)));
-        break;
-      default:
-        itkExceptionMacro("Unsupported component type: " << this->GetComponentTypeAsString(this->m_ComponentType));
-        break;
-    }
-
-    netCDF_call(nc_close(m_NCID));
+    if (false) // start with a plain "if"
+    {}         // so element statements can all be "else if"
+    ELEMENT_READ(int8_t)
+    ELEMENT_READ(uint8_t)
+    ELEMENT_READ(int16_t)
+    ELEMENT_READ(uint16_t)
+    ELEMENT_READ(int32_t)
+    ELEMENT_READ(uint32_t)
+    ELEMENT_READ(int64_t)
+    ELEMENT_READ(uint64_t)
+    ELEMENT_READ(float)
+    ELEMENT_READ(double)
+    else { itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType())); }
   }
 }
 
@@ -305,13 +249,6 @@ OMEZarrNGFFImageIO::Read(void * buffer)
 bool
 OMEZarrNGFFImageIO::CanWriteFile(const char * name)
 {
-  const std::string filename = name;
-
-  if (filename.empty())
-  {
-    return false;
-  }
-
   return this->HasSupportedWriteExtension(name, true);
 }
 
@@ -319,85 +256,102 @@ OMEZarrNGFFImageIO::CanWriteFile(const char * name)
 void
 OMEZarrNGFFImageIO::WriteImageInformation()
 {
-  if (this->m_FileName.empty())
-  {
-    itkExceptionMacro("FileName has not been set.");
-  }
-
   // we will do everything in Write() method
 }
 
 
+// We need to specify dtype for opening. As dtype is dependent on component type, this macro is long.
+#define ELEMENT_WRITE(typeName)                                                                       \
+  else if (tensorstoreToITKComponentType(tensorstore::dtype_v<typeName>) == this->GetComponentType()) \
+  {                                                                                                   \
+    if (sizeof(typeName) == 1)                                                                        \
+    {                                                                                                 \
+      dtype = "|";                                                                                    \
+    }                                                                                                 \
+    if (std::numeric_limits<typeName>::is_integer)                                                    \
+    {                                                                                                 \
+      if (std::numeric_limits<typeName>::is_signed)                                                   \
+      {                                                                                               \
+        dtype += 'i';                                                                                 \
+      }                                                                                               \
+      else                                                                                            \
+      {                                                                                               \
+        dtype += 'u';                                                                                 \
+      }                                                                                               \
+    }                                                                                                 \
+    else                                                                                              \
+    {                                                                                                 \
+      dtype += 'f';                                                                                   \
+    }                                                                                                 \
+    dtype += std::to_string(sizeof(typeName));                                                        \
+                                                                                                      \
+    auto openFuture = tensorstore::Open(                                                              \
+      {                                                                                               \
+        { "driver", "zarr" },                                                                         \
+        { "kvstore", { { "driver", "file" }, { "path", this->m_FileName } } },                        \
+        { "metadata",                                                                                 \
+          {                                                                                           \
+            { "compressor", { { "id", "blosc" } } },                                                  \
+            { "dtype", dtype },                                                                       \
+            { "shape", shape },                                                                       \
+          } },                                                                                        \
+      },                                                                                              \
+      tsContext,                                                                                      \
+      tensorstore::OpenMode::create | tensorstore::OpenMode::delete_existing,                         \
+      tensorstore::ReadWriteMode::read_write);                                                        \
+    TS_EVAL_CHECK(openFuture);                                                                        \
+                                                                                                      \
+    auto   writeStore = openFuture.value();                                                           \
+    auto * p = reinterpret_cast<typeName const *>(buffer);                                            \
+    auto   arr = tensorstore::Array(p, shape, tensorstore::c_order);                                  \
+    auto   writeFuture = tensorstore::Write(tensorstore::UnownedToShared(arr), writeStore);           \
+    TS_EVAL_CHECK(writeFuture);                                                                       \
+  }
+
 void
 OMEZarrNGFFImageIO::Write(const void * buffer)
 {
-  int r;
-  netCDF_call(nc_create(getNCFilename(this->m_FileName), NC_CLOBBER, &m_NCID));
-
-  const std::vector<std::string> dimensionNames = { "c", "i", "j", "k", "t" };
-
-  unsigned nDims = this->GetNumberOfDimensions();
-
-  // handle component dimension
-  unsigned cDims = 0;
-  if (this->GetNumberOfComponents() > 1)
+  if (itkToTensorstoreComponentType(this->GetComponentType()) == tensorstore::dtype_v<void>)
   {
-    cDims = 1;
+    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
   }
 
-  int dimIDs[MaximumDimension];
-  netCDF_call(nc_def_dim(m_NCID, dimensionNames[0].c_str(), this->GetNumberOfComponents(), &dimIDs[nDims]));
-
-  // handle other dimensions
-  for (unsigned d = 0; d < nDims; ++d)
+  std::vector<int64_t> shape(this->GetNumberOfDimensions());
+  for (unsigned d = 0; d < shape.size(); ++d)
   {
-    unsigned dSize = this->GetDimensions(nDims - 1 - d);
-    netCDF_call(nc_def_dim(m_NCID, dimensionNames[nDims - d].c_str(), dSize, &dimIDs[d]));
+    auto dSize = this->GetDimensions(d);
+    if (dSize > std::numeric_limits<int64_t>::max())
+    {
+      itkExceptionMacro("This image IO uses a signed type for sizes, and "
+                        << dSize << " exceeds maximum allowed size of " << std::numeric_limits<int64_t>::max());
+    }
+    shape[shape.size() - 1 - d] = dSize; // convert IJK into KJI
   }
 
-  int netCDF_type = itkToNetCDFComponentType(this->m_ComponentType);
-  int varID;
-  netCDF_call(nc_def_var(m_NCID, "image", netCDF_type, nDims + cDims, dimIDs, &varID));
-  netCDF_call(nc_enddef(m_NCID));
-
-  switch (netCDF_type)
+  std::string dtype;
+  // we prefer to write using our own endianness, so no conversion is necessary
+  if (ByteSwapper<int>::SystemIsBigEndian())
   {
-    case NC_BYTE:
-      netCDF_call(nc_put_var_text(m_NCID, varID, static_cast<const char *>(buffer)));
-      break;
-    case NC_UBYTE:
-      netCDF_call(nc_put_var_ubyte(m_NCID, varID, static_cast<const unsigned char *>(buffer)));
-      break;
-    case NC_SHORT:
-      netCDF_call(nc_put_var_short(m_NCID, varID, static_cast<const short *>(buffer)));
-      break;
-    case NC_USHORT:
-      netCDF_call(nc_put_var_ushort(m_NCID, varID, static_cast<const unsigned short *>(buffer)));
-      break;
-    case NC_INT:
-      netCDF_call(nc_put_var_int(m_NCID, varID, static_cast<const int *>(buffer)));
-      break;
-    case NC_UINT:
-      netCDF_call(nc_put_var_uint(m_NCID, varID, static_cast<const unsigned int *>(buffer)));
-      break;
-    case NC_INT64:
-      netCDF_call(nc_put_var_longlong(m_NCID, varID, static_cast<const long long *>(buffer)));
-      break;
-    case NC_UINT64:
-      netCDF_call(nc_put_var_ulonglong(m_NCID, varID, static_cast<const unsigned long long *>(buffer)));
-      break;
-    case NC_FLOAT:
-      netCDF_call(nc_put_var_float(m_NCID, varID, static_cast<const float *>(buffer)));
-      break;
-    case NC_DOUBLE:
-      netCDF_call(nc_put_var_double(m_NCID, varID, static_cast<const double *>(buffer)));
-      break;
-    default:
-      itkExceptionMacro("Unsupported component type: " << this->GetComponentTypeAsString(this->m_ComponentType));
-      break;
+    dtype = ">";
+  }
+  else
+  {
+    dtype = "<";
   }
 
-  netCDF_call(nc_close(m_NCID));
+  if (false) // start with a plain "if"
+  {}         // so element statements can all be "else if"
+  ELEMENT_WRITE(int8_t)
+  ELEMENT_WRITE(uint8_t)
+  ELEMENT_WRITE(int16_t)
+  ELEMENT_WRITE(uint16_t)
+  ELEMENT_WRITE(int32_t)
+  ELEMENT_WRITE(uint32_t)
+  ELEMENT_WRITE(int64_t)
+  ELEMENT_WRITE(uint64_t)
+  ELEMENT_WRITE(float)
+  ELEMENT_WRITE(double)
+  else { itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType())); }
 }
 
 } // end namespace itk

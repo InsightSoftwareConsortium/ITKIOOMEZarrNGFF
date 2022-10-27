@@ -108,7 +108,16 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
   using ImageType = itk::Image<unsigned char, 3>;
   auto imageReader = itk::ImageFileReader<ImageType>::New();
   imageReader->SetFileName(inputFileName);
-  imageReader->UpdateOutputInformation();
+  try
+  {
+    imageReader->UpdateOutputInformation();
+  }
+  catch (itk::ExceptionObject& exc)
+  {
+    // maybe pointing to a directory without zarr-compatible extension
+    imageReader->SetImageIO(itk::OMEZarrNGFFImageIO::New()); // explicitly request zarr IO
+    imageReader->UpdateOutputInformation(); // retry
+  }
 
   unsigned dim = imageReader->GetImageIO()->GetNumberOfDimensions();
   auto     componentType = imageReader->GetImageIO()->GetComponentType();

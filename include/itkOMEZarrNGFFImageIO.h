@@ -28,7 +28,7 @@ namespace itk
 {
 /** \class OMEZarrNGFFImageIO
  *
- * \brief Read and write MEZarrNGFF images.
+ * \brief Read and write OMEZarrNGFF images.
  *
  * Open Microscopy Environment Zarr Next Generation File Format
  * specification can be found at https://github.com/ome/ngff
@@ -134,28 +134,7 @@ protected:
     return largestRegion;
   }
 
-  int m_NCID = 0;
-
   const std::vector<std::string> dimensionNames = { "x", "y", "z", "c", "t" };
-
-  std::string m_ncFilename;
-
-  const char *
-  getNCFilename(const std::string & filename)
-  {
-    std::string mode = "file";
-    if (filename.substr(filename.length() - 4) == ".zip") // TODO: handle uppercase and mixed case
-    {
-      mode = "zip";
-    }
-    m_ncFilename = "file://" + filename + "#mode=zarr,noxarray," + mode; // TODO: support S3
-    return m_ncFilename.c_str();
-  }
-  const char *
-  getNCFilename(const char * filename)
-  {
-    return getNCFilename(std::string(filename));
-  }
 
 private:
   // We don't need any private members here
