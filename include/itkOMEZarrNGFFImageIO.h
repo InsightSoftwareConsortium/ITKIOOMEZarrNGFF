@@ -101,6 +101,9 @@ public:
   void
   Write(const void * buffer) override;
 
+  /** Which resolution level is desired? */
+  itkGetConstMacro(DatasetIndex, int);
+  itkSetMacro(DatasetIndex, int);
 
   bool
   CanStreamRead() override
@@ -121,6 +124,10 @@ protected:
   void
   PrintSelf(std::ostream & os, Indent indent) const override;
 
+  /** Read a single array and set relevant metadata. */
+  void
+  ReadArrayMetadata(std::string path);
+
   ImageIORegion
   GetLargestRegion()
   {
@@ -135,9 +142,11 @@ protected:
   }
 
   const std::vector<std::string> dimensionNames = { "x", "y", "z", "c", "t" };
+  const std::vector<std::string> dimensionTypes = { "space", "space", "space", "channel", "time" };
+  const std::vector<std::string> dimensionUnits = { "millimeter", "millimeter", "millimeter", "index", "second" };
 
 private:
-  // We don't need any private members here
+  int m_DatasetIndex = 0; // first, highest resolution scale by default
 };
 } // end namespace itk
 

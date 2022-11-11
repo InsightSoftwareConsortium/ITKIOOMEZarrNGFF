@@ -25,6 +25,8 @@
 #include "tensorstore/open.h"
 #include "tensorstore/index_space/dim_expression.h"
 
+#include <nlohmann/json.hpp>
+
 namespace itk
 {
 static tensorstore::Context tsContext = tensorstore::Context::Default();
@@ -50,7 +52,8 @@ OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
 void
 OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
 {
-  Superclass::PrintSelf(os, indent); // TODO: either add stuff here, or remove this override
+  Superclass::PrintSelf(os, indent);
+  os << indent << "DatasetIndex: " << m_DatasetIndex << std::endl;
 }
 
 IOComponentEnum
@@ -164,10 +167,87 @@ itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
   }
 }
 
+
+// JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zgroup"
+void
+writeJson(nlohmann::json json, std::string path)
+{
+  auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
+                       { { "driver", "json" }, { "kvstore", { { "driver", "file" }, { "path", path } } } },
+                       tsContext,
+                       tensorstore::OpenMode::create | tensorstore::OpenMode::delete_existing,
+                       tensorstore::ReadWriteMode::read_write)
+                       .result()
+                       .value();
+  auto writeFuture = tensorstore::Write(tensorstore::MakeScalarArray(json), attrs_store); // preferably pretty-print
+
+  auto result = writeFuture.result();
+  if (!result.ok())
+  {
+    itkGenericExceptionMacro(<< "There was an error writing metadata to file '" << path
+                             << ". Error details: " << result.status());
+  }
+}
+
+// JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zattrs"
+bool
+jsonRead(std::string path, nlohmann::json & result)
+{
+  // Reading JSON via TensorStore allows it to be in the cloud
+  auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
+                       { { "driver", "json" }, { "kvstore", { { "driver", "file" }, { "path", path } } } })
+                       .result()
+                       .value();
+
+  auto attrs_array_result = tensorstore::Read(attrs_store).result();
+
+  nlohmann::json attrs;
+  if (attrs_array_result.ok())
+  {
+    result = attrs_array_result.value()();
+    return true;
+  }
+  else if (absl::IsNotFound(attrs_array_result.status()))
+  {
+    result = nlohmann::json::object_t();
+    return false;
+  }
+  else // another error
+  {
+    result = nlohmann::json::object_t();
+    return false;
+  }
+}
+
 bool
 OMEZarrNGFFImageIO::CanReadFile(const char * filename)
 {
-  return this->HasSupportedWriteExtension(filename, true);
+  try
+  {
+    nlohmann::json json;
+    if (!jsonRead(std::string(filename) + "/.zgroup", json))
+    {
+      return false;
+    }
+    if (json.at("zarr_format").get<int>() != 2)
+    {
+      return false; // unsupported zarr format
+    }
+    if (!jsonRead(std::string(filename) + "/.zattrs", json))
+    {
+      return false;
+    }
+    if (!json.at("multiscales").is_array())
+    {
+      return false; // multiscales attribute array must be present
+    }
+    return true;
+  }
+  catch (...)
+  {
+    return false;
+  }
+  // return this->HasSupportedWriteExtension(filename, true);
 }
 
 // Evaluate tensorstore future (statement) and error-check the result.
@@ -182,13 +262,13 @@ OMEZarrNGFFImageIO::CanReadFile(const char * filename)
   ITK_NOOP_STATEMENT
 
 
-thread_local tensorstore::TensorStore<> store; // initialized by ReadImageInformation
+thread_local tensorstore::TensorStore<> store; // initialized by ReadImageInformation/ReadArrayMetadata
 
 void
-OMEZarrNGFFImageIO::ReadImageInformation()
+OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path)
 {
   auto openFuture =
-    tensorstore::Open({ { "driver", "zarr" }, { "kvstore", { { "driver", "file" }, { "path", this->m_FileName } } } },
+    tensorstore::Open({ { "driver", "zarr" }, { "kvstore", { { "driver", "file" }, { "path", path } } } },
                       tsContext,
                       tensorstore::OpenMode::open,
                       tensorstore::RecheckCached{ false },
@@ -201,11 +281,97 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   this->SetComponentType(tensorstoreToITKComponentType(dtype));
 
   std::vector<int64_t> dims(shape_span.rbegin(), shape_span.rend()); // convert KJI into IJK
-  this->SetNumberOfDimensions(dims.size());
+  assert(this->GetNumberOfDimensions() == dims.size());
+  // this->SetNumberOfDimensions(dims.size());
   for (unsigned d = 0; d < dims.size(); ++d)
   {
     this->SetDimensions(d, dims[d]);
   }
+}
+
+void
+addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
+{
+  assert(ct.is_array());
+  assert(ct.size() >= 1);
+
+
+  assert(ct[0].at("type") == "scale"); // first transformation must be scale
+  nlohmann::json s = ct[0].at("scale");
+  assert(s.is_array());
+  unsigned dim = s.size();
+  assert(dim == io->GetNumberOfDimensions());
+
+  for (unsigned d = 0; d < dim; ++d)
+  {
+    double dS = s[dim - d - 1].get<double>(); // reverse indices KJI into IJK
+    io->SetSpacing(d, dS * io->GetSpacing(d));
+    io->SetOrigin(d, dS * io->GetOrigin(d)); // TODO: should we update origin like this?
+  }
+
+  if (ct.size() > 1) // there is also a translation
+  {
+    assert(ct[1].at("type") == "translation"); // first transformation must be scale
+    nlohmann::json tr = ct[1].at("translation");
+    assert(tr.is_array());
+    dim = tr.size();
+    assert(dim == io->GetNumberOfDimensions());
+
+    for (unsigned d = 0; d < dim; ++d)
+    {
+      double dOrigin = tr[dim - d - 1].get<double>(); // reverse indices KJI into IJK
+      io->SetOrigin(d, dOrigin + io->GetOrigin(d));
+    }
+  }
+
+  if (ct.size() > 2)
+  {
+    itkGenericOutputMacro(<< "A sequence of more than 2 transformations is specified in '" << io->GetFileName()
+                          << "'. This is currently not supported. Extra transformations are ignored.");
+  }
+}
+
+thread_local std::string path; // initialized by ReadImageInformation
+
+void
+OMEZarrNGFFImageIO::ReadImageInformation()
+{
+  nlohmann::json json;
+
+  bool status = jsonRead(std::string(this->GetFileName()) + "/.zgroup", json);
+  assert(json.at("zarr_format").get<int>() == 2); // only v2 for now
+  status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json);
+  json = json.at("multiscales")[0];    // multiscales must be present in OME-NGFF
+  assert(json.at("version") == "0.4"); // only this is currently supported
+  this->SetNumberOfDimensions(json.at("axes").size());
+
+  // initialize identity transform
+  for (unsigned d = 0; d < this->GetNumberOfDimensions(); ++d)
+  {
+    this->SetSpacing(d, 1.0);
+    this->SetOrigin(d, 0.0);
+    this->SetDirection(d, this->GetDefaultDirection(d));
+  }
+
+  if (json.contains("coordinateTransformations")) // optional
+  {
+    addCoordinateTransformations(this, json.at("coordinateTransformations")); // dataset-level scaling
+  }
+  json = json.at("datasets");
+  if (this->GetDatasetIndex() > json.size())
+  {
+    itkExceptionMacro(<< "Requested DatasetIndex of " << this->GetDatasetIndex()
+                      << " is greater than number of datasets (" << json.size() << ") which exist in OME-NGFF store '"
+                      << this->GetFileName() << "'");
+  }
+
+  json = json[this->GetDatasetIndex()];
+  addCoordinateTransformations(this, json.at("coordinateTransformations")); // per-resolution scaling
+  path = json.at("path").get<std::string>();
+
+  // TODO: parse stuff from "metadata" object into metadata dictionary
+
+  ReadArrayMetadata(std::string(this->GetFileName()) + "/" + path);
 }
 
 // We call tensorstoreToITKComponentType for each type.
@@ -256,7 +422,43 @@ OMEZarrNGFFImageIO::CanWriteFile(const char * name)
 void
 OMEZarrNGFFImageIO::WriteImageInformation()
 {
-  // we will do everything in Write() method
+  nlohmann::json group;
+  group["zarr_format"] = 2;
+  writeJson(group, std::string(this->GetFileName()) + "/.zgroup");
+
+  unsigned dim = this->GetNumberOfDimensions();
+
+  std::vector<double> origin(dim);
+  std::vector<double> spacing(dim);
+
+  std::vector<nlohmann::json> axes(dim);
+  for (unsigned d = 0; d < dim; ++d)
+  {
+    // reverse indices IJK into KJI
+    nlohmann::json dAxis = { { "name", this->dimensionNames[dim - d - 1] },
+                             { "type", this->dimensionTypes[dim - d - 1] },
+                             { "unit", this->dimensionUnits[dim - d - 1] } };
+    axes[d] = dAxis;
+    origin[d] = this->GetOrigin(dim - d - 1);
+    spacing[d] = this->GetSpacing(dim - d - 1);
+  }
+
+  path = "s" + std::to_string(this->GetDatasetIndex());
+
+  nlohmann::json datasets = { { "coordinateTransformations",
+                                { { { "scale", spacing }, { "type", "scale" } },
+                                  { { "translation", origin }, { "type", "translation" } } } },
+                              { "path", path } };
+
+  nlohmann::json multiscales = {
+    { { "axes", axes }, { "datasets", { datasets } }, { "version", "0.4" } },
+  };
+
+  // TODO: add stuff from metadata dictionary into "metadata" object
+
+  nlohmann::json zattrs;
+  zattrs["multiscales"] = multiscales;
+  writeJson(zattrs, std::string(this->GetFileName()) + "/.zattrs");
 }
 
 
@@ -288,7 +490,7 @@ OMEZarrNGFFImageIO::WriteImageInformation()
     auto openFuture = tensorstore::Open(                                                              \
       {                                                                                               \
         { "driver", "zarr" },                                                                         \
-        { "kvstore", { { "driver", "file" }, { "path", this->m_FileName } } },                        \
+        { "kvstore", { { "driver", "file" }, { "path", this->m_FileName + "/" + path } } },           \
         { "metadata",                                                                                 \
           {                                                                                           \
             { "compressor", { { "id", "blosc" } } },                                                  \
@@ -311,6 +513,8 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 void
 OMEZarrNGFFImageIO::Write(const void * buffer)
 {
+  this->WriteImageInformation();
+
   if (itkToTensorstoreComponentType(this->GetComponentType()) == tensorstore::dtype_v<void>)
   {
     itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
