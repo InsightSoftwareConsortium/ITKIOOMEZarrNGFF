@@ -27,6 +27,7 @@ CreateTestDriver(IOOMEZarrNGFF "${IOOMEZarrNGFF-Test_LIBRARIES}" "${IOOMEZarrNGF
 #   )
 # set_tests_properties(itkOMEZarrNGFFImageIOWriteConvertTest PROPERTIES DEPENDS "itkOMEZarrNGFFImageIOReadConvertTest")
 
+# 2D test with identity metadata
 itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestCT1
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
@@ -35,6 +36,17 @@ itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestCT1
     itkOMEZarrNGFFImageIOTest
       DATA{Input/cthead1.mha}
       ${ITK_TEST_OUTPUT_DIR}/cthead1.zarr
+  )
+
+# 3D test image with non-identity spacing
+itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestDzZ_T1seg
+  COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Input/DzZ_Seeds.seg.nrrd}
+      ${ITK_TEST_OUTPUT_DIR}/DzZ_T1seg.zarr
+    itkOMEZarrNGFFImageIOTest
+      DATA{Input/DzZ_Seeds.seg.nrrd}
+      ${ITK_TEST_OUTPUT_DIR}/DzZ_T1seg.zarr
   )
 
 # itk_add_test(NAME itkOMEZarrNGFFImageIOWriteConvertTestCT1
