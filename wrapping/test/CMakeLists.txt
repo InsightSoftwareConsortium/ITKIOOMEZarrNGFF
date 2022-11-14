@@ -8,9 +8,9 @@ itk_python_expression_add_test(NAME itkOMEZarrNGFFImageIOInstantiateTestPython
 itk_python_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestPython
   TEST_DRIVER_ARGS
   --compare
-    DATA{${test_input_dir}/cthead1.mha}
+    DATA{${test_input_dir}/cthead1.png}
     ${ITK_TEST_OUTPUT_DIR}/cthead1.zarr
   COMMAND itkOMEZarrNGFFImageIOTestPython.py
-    DATA{${test_input_dir}/cthead1.mha}
+    DATA{${test_input_dir}/cthead1.png}
     ${ITK_TEST_OUTPUT_DIR}/cthead1.zarr
   )
