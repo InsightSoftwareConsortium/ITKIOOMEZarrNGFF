@@ -49,6 +49,18 @@ itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestDzZ_T1seg
       ${ITK_TEST_OUTPUT_DIR}/DzZ_T1seg.zarr
   )
 
+# 3D test image with non-identity origin and spacing
+itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTest_OriginSpacing
+  COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Input/PV6.0_FLASH_FLOAT32.mha}
+      ${ITK_TEST_OUTPUT_DIR}/PV6.0_FLASH_FLOAT32.zarr
+    itkOMEZarrNGFFImageIOTest
+      DATA{Input/PV6.0_FLASH_FLOAT32.mha}
+      ${ITK_TEST_OUTPUT_DIR}/PV6.0_FLASH_FLOAT32.zarr
+  )
+
+
 # itk_add_test(NAME itkOMEZarrNGFFImageIOWriteConvertTestCT1
 #   COMMAND IOOMEZarrNGFFTestDriver
 #     --compare
