@@ -30,4 +30,10 @@ image = itk.imread(sys.argv[1])
 print(f"Writing {sys.argv[2]}")
 itk.imwrite(image, sys.argv[2], imageio=imageio, compression=False)
 
+print(f"Reading {sys.argv[2]}")
+image2 = itk.imread(sys.argv[2], imageio=imageio)
+
+print(f"Writing {sys.argv[3]}")
+itk.imwrite(image, sys.argv[3])
+
 print("Test finished")
