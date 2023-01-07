@@ -5,7 +5,7 @@ on: [push,pull_request]
 env:
   itk-git-tag: "v5.3.0"
   itk-wheel-tag: "v5.3.0"
-  ITKPythonPackage-git-tag: "f91b70fe5f97a095be8e20cff33be31a11b0b96e"
+  ITKPythonPackage-git-tag: "88581ec3a9382b65755e242d832acb42cd1078c1"
 
 jobs:
   build-test-cxx:
