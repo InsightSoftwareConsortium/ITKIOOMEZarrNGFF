@@ -5,7 +5,7 @@ on: [push,pull_request]
 env:
   itk-git-tag: "v5.3.0"
   itk-wheel-tag: "v5.3.0"
-  ITKPythonPackage-git-tag: "88581ec3a9382b65755e242d832acb42cd1078c1"
+  ITKPythonPackage-git-tag: "f91e8681dfe226eb1226b97dfed9bafff2e9b289"
 
 jobs:
   build-test-cxx:
@@ -13,7 +13,7 @@ jobs:
     strategy:
       max-parallel: 3
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-11]
+        os: [ubuntu-22.04, windows-2022, macos-12]
         include:
           - os: ubuntu-22.04
             c-compiler: "gcc"
@@ -23,7 +23,7 @@ jobs:
             c-compiler: "cl.exe"
             cxx-compiler: "cl.exe"
             cmake-build-type: "Release"
-          - os: macos-11
+          - os: macos-12
             c-compiler: "clang"
             cxx-compiler: "clang++"
             cmake-build-type: "MinSizeRel"
@@ -145,20 +145,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: 'Free up disk space'
-      run: |
-        # Workaround for https://github.com/actions/virtual-environments/issues/709
-        df -h
-        sudo apt-get remove -y '^dotnet-.*'
-        sudo apt-get remove -y '^llvm-.*'
-        sudo apt-get remove -y 'php.*'
-        sudo apt-get autoremove -y
-        sudo apt-get clean
-        sudo rm -rf "/usr/local/share/boost"
-        sudo rm -rf /usr/share/dotnet/
-        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-        df -h
-
     - name: 'Fetch build script'
       run: |
         curl -L https://raw.githubusercontent.com/InsightSoftwareConsortium/ITKPythonPackage/${{ env.ITKPythonPackage-git-tag }}/scripts/dockcross-manylinux-download-cache-and-build-module-wheels.sh -O
@@ -174,13 +160,13 @@ jobs:
         ./dockcross-manylinux-download-cache-and-build-module-wheels.sh cp${{ matrix.python-version }}
 
     - name: Publish Python package as GitHub Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: LinuxWheel${{ matrix.python-version }}
-        path: dist
+        path: dist/*.whl
 
   build-macos-python-packages:
-    runs-on: macos-11
+    runs-on: macos-12
     strategy:
       max-parallel: 2
 
@@ -211,10 +197,10 @@ jobs:
         ./macpython-download-cache-and-build-module-wheels.sh
 
     - name: Publish Python package as GitHub Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: MacOSWheels
-        path: dist
+        path: dist/*.whl
 
   build-windows-python-packages:
     runs-on: windows-2022
@@ -280,11 +266,14 @@ jobs:
         pwd
         C:\Python3${{ matrix.python-version-minor }}-x64\python.exe C:\P\IPP\scripts\windows_build_module_wheels.py --py-envs "3${{ matrix.python-version-minor }}-x64" --no-cleanup
 
+        mkdir ${{ github.workspace }}\dist
+        copy dist\*.whl ${{ github.workspace }}\dist
+
     - name: Publish Python package as GitHub Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: WindowsWheel3.${{ matrix.python-version-minor }}
-        path: ../../im/dist
+        path: dist/*.whl
 
   publish-python-packages-to-pypi:
     needs:
@@ -295,7 +284,7 @@ jobs:
 
     steps:
     - name: Download Python Packages
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
 
     - name: Prepare packages for upload
       run: |
