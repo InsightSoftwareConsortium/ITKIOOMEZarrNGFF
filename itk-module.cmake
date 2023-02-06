@@ -19,7 +19,7 @@ itk_module(IOOMEZarrNGFF
   FACTORY_NAMES
     ImageIO::OMEZarrNGFF
   DESCRIPTION
-    "${DOCUMENTATION}"
+    "IO for images stored in zarr-backed OME-NGFF"
   EXCLUDE_FROM_DEFAULT
   ENABLE_SHARED
 )
