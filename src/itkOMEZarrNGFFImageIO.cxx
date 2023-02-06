@@ -342,7 +342,8 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   assert(json.at("zarr_format").get<int>() == 2); // only v2 for now
   status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json);
   json = json.at("multiscales")[0];    // multiscales must be present in OME-NGFF
-  assert(json.at("version") == "0.4"); // only this is currently supported
+  auto version = json.at("version");
+  assert(version == "0.4" || version == "0.3"); // supported versions
   this->SetNumberOfDimensions(json.at("axes").size());
 
   // initialize identity transform
@@ -366,7 +367,18 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   }
 
   json = json[this->GetDatasetIndex()];
-  addCoordinateTransformations(this, json.at("coordinateTransformations")); // per-resolution scaling
+  if (json.contains("coordinateTransformations")) // optional for versions prior to 0.4
+  {
+    addCoordinateTransformations(this, json.at("coordinateTransformations")); // per-resolution scaling
+  }
+  else
+  {
+    if (version == "0.4")
+    {
+      itkExceptionMacro(<< "OME-NGFF v0.4 requires `coordinateTransformations` for each resolution level.");
+    }
+  }
+  
   path = json.at("path").get<std::string>();
 
   // TODO: parse stuff from "metadata" object into metadata dictionary
