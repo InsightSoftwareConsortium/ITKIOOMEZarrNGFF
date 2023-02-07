@@ -141,6 +141,9 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
     case itk::ImageIOBase::IOComponentEnum::FLOAT:
       return doTest<float>(inputFileName, outputFileName, dim);
       break;
+    case itk::ImageIOBase::IOComponentEnum::DOUBLE:
+      return doTest<double>(inputFileName, outputFileName, dim);
+      break;
     default:
       std::cerr << "Unsupported input image pixel component type: ";
       std::cerr << itk::ImageIOBase::GetComponentTypeAsString(componentType);
