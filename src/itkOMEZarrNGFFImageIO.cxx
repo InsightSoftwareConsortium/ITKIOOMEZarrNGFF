@@ -427,7 +427,10 @@ OMEZarrNGFFImageIO::Read(void * buffer)
     ELEMENT_READ(uint64_t)
     ELEMENT_READ(float)
     ELEMENT_READ(double)
-    else { itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType())); }
+    else
+    {
+      itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
+    }
   }
 }
 
@@ -575,7 +578,10 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   ELEMENT_WRITE(uint64_t)
   ELEMENT_WRITE(float)
   ELEMENT_WRITE(double)
-  else { itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType())); }
+  else
+  {
+    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
+  }
 }
 
 } // end namespace itk

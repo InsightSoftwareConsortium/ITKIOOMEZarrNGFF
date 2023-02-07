@@ -114,11 +114,11 @@ itkOMEZarrNGFFImageIOTest(int argc, char * argv[])
   {
     imageReader->UpdateOutputInformation();
   }
-  catch (itk::ExceptionObject& exc)
+  catch (itk::ExceptionObject & exc)
   {
     // maybe pointing to a directory without zarr-compatible extension
     imageReader->SetImageIO(itk::OMEZarrNGFFImageIO::New()); // explicitly request zarr IO
-    imageReader->UpdateOutputInformation(); // retry
+    imageReader->UpdateOutputInformation();                  // retry
   }
 
   unsigned dim = imageReader->GetImageIO()->GetNumberOfDimensions();
