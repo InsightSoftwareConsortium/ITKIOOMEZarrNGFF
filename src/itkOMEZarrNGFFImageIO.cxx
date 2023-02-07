@@ -350,8 +350,8 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   assert(json.at("zarr_format").get<int>() == 2); // only v2 for now
   status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json);
   json = json.at("multiscales")[0]; // multiscales must be present in OME-NGFF
-  auto version = json.at("version");
-  assert(version == "0.4" || version == "0.3" || version == "0.2"); // supported versions
+  auto version = json.at("version").get<std::string>();
+  assert(version == "0.4" || version == "0.3" || version == "0.2" || version == "0.1"); // supported versions
 
   if (json.contains("axes")) // optional before 0.3
   {
