@@ -281,8 +281,16 @@ OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path)
   this->SetComponentType(tensorstoreToITKComponentType(dtype));
 
   std::vector<int64_t> dims(shape_span.rbegin(), shape_span.rend()); // convert KJI into IJK
-  assert(this->GetNumberOfDimensions() == dims.size());
-  // this->SetNumberOfDimensions(dims.size());
+
+  if (this->GetNumberOfDimensions() == 0) // reading version 0.2 or 0.1
+  {
+    this->InitializeIdentityMetadata(dims.size());
+  }
+  else
+  {
+    assert(this->GetNumberOfDimensions() == dims.size());
+  }
+
   for (unsigned d = 0; d < dims.size(); ++d)
   {
     this->SetDimensions(d, dims[d]);
@@ -341,17 +349,17 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   bool status = jsonRead(std::string(this->GetFileName()) + "/.zgroup", json);
   assert(json.at("zarr_format").get<int>() == 2); // only v2 for now
   status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json);
-  json = json.at("multiscales")[0];    // multiscales must be present in OME-NGFF
+  json = json.at("multiscales")[0]; // multiscales must be present in OME-NGFF
   auto version = json.at("version");
-  assert(version == "0.4" || version == "0.3"); // supported versions
-  this->SetNumberOfDimensions(json.at("axes").size());
+  assert(version == "0.4" || version == "0.3" || version == "0.2"); // supported versions
 
-  // initialize identity transform
-  for (unsigned d = 0; d < this->GetNumberOfDimensions(); ++d)
+  if (json.contains("axes")) // optional before 0.3
   {
-    this->SetSpacing(d, 1.0);
-    this->SetOrigin(d, 0.0);
-    this->SetDirection(d, this->GetDefaultDirection(d));
+    this->InitializeIdentityMetadata(json.at("axes").size());
+  }
+  else
+  {
+    this->SetNumberOfDimensions(0);
   }
 
   if (json.contains("coordinateTransformations")) // optional
@@ -378,7 +386,7 @@ OMEZarrNGFFImageIO::ReadImageInformation()
       itkExceptionMacro(<< "OME-NGFF v0.4 requires `coordinateTransformations` for each resolution level.");
     }
   }
-  
+
   path = json.at("path").get<std::string>();
 
   // TODO: parse stuff from "metadata" object into metadata dictionary

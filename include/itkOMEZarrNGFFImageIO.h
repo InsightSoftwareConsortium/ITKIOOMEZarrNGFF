@@ -128,6 +128,21 @@ protected:
   void
   ReadArrayMetadata(std::string path);
 
+  /** Sets the requested dimension, and initializes spatial metadata to identity. */
+  void
+  InitializeIdentityMetadata(unsigned nDims)
+  {
+    this->SetNumberOfDimensions(nDims);
+
+    // initialize identity transform
+    for (unsigned d = 0; d < this->GetNumberOfDimensions(); ++d)
+    {
+      this->SetSpacing(d, 1.0);
+      this->SetOrigin(d, 0.0);
+      this->SetDirection(d, this->GetDefaultDirection(d));
+    }
+  }
+
   ImageIORegion
   GetLargestRegion()
   {
