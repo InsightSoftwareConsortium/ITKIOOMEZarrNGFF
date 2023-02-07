@@ -351,7 +351,16 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json);
   json = json.at("multiscales")[0]; // multiscales must be present in OME-NGFF
   auto version = json.at("version").get<std::string>();
-  assert(version == "0.4" || version == "0.3" || version == "0.2" || version == "0.1"); // supported versions
+  if (version == "0.4" || version == "0.3" || version == "0.2" || version == "0.1")
+  {
+    // these are explicitly supported versions
+  }
+  else
+  {
+    std::string message = "OME-NGFF version " + version + " is not explicitly supported." +
+                          "\nImportant features might be ignored." + "\nSupported versions are 0.1 through 0.4.";
+    OutputWindowDisplayWarningText(message.c_str());
+  }
 
   if (json.contains("axes")) // optional before 0.3
   {
