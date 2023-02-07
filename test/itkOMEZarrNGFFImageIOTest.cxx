@@ -84,6 +84,8 @@ doTest(const char * inputFileName, const char * outputFileName, unsigned dimensi
       return doTest<PixelType, 3>(inputFileName, outputFileName);
     case 4:
       return doTest<PixelType, 4>(inputFileName, outputFileName);
+    case 5:
+      return doTest<PixelType, 5>(inputFileName, outputFileName);
     default:
       itkGenericExceptionMacro("Unsupported image dimension: " << dimension);
       break;
