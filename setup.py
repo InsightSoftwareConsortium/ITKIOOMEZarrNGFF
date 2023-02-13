@@ -12,7 +12,7 @@ except ImportError:
 
 setup(
     name='itk-ioomezarrngff',
-    version='0.1.1',
+    version='0.1.2',
     author='Insight Software Consortium',
     author_email='itk+community@discourse.itk.org',
     packages=['itk'],
