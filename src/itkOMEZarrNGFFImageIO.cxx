@@ -21,6 +21,8 @@
 #include "itkIntTypes.h"
 #include "itkByteSwapper.h"
 
+#include <filesystem>
+
 #include "tensorstore/context.h"
 #include "tensorstore/open.h"
 #include "tensorstore/index_space/dim_expression.h"
@@ -167,13 +169,28 @@ itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
   }
 }
 
+// Returns TensorStore KvStore driver name appropriate for this path.
+// Options are file, zip. TODO: http, gcs (GoogleCouldStorage), etc.
+std::string
+getKVstoreDriver(std::string path)
+{
+  if (path.size() < 4)
+  {
+    return "file";
+  }
+  if (path.substr(path.size() - 4) == ".zip")
+  {
+    return "zip";
+  }
+  return "file";
+}
 
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zgroup"
 void
-writeJson(nlohmann::json json, std::string path)
+writeJson(nlohmann::json json, std::string path, std::string driver)
 {
   auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
-                       { { "driver", "json" }, { "kvstore", { { "driver", "file" }, { "path", path } } } },
+                       { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } },
                        tsContext,
                        tensorstore::OpenMode::create | tensorstore::OpenMode::delete_existing,
                        tensorstore::ReadWriteMode::read_write)
@@ -191,11 +208,11 @@ writeJson(nlohmann::json json, std::string path)
 
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zattrs"
 bool
-jsonRead(std::string path, nlohmann::json & result)
+jsonRead(std::string path, nlohmann::json & result, std::string driver)
 {
   // Reading JSON via TensorStore allows it to be in the cloud
   auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
-                       { { "driver", "json" }, { "kvstore", { { "driver", "file" }, { "path", path } } } })
+                       { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } })
                        .result()
                        .value();
 
@@ -224,8 +241,9 @@ OMEZarrNGFFImageIO::CanReadFile(const char * filename)
 {
   try
   {
+    std::string    driver = getKVstoreDriver(filename);
     nlohmann::json json;
-    if (!jsonRead(std::string(filename) + "/.zgroup", json))
+    if (!jsonRead(std::string(filename) + "/.zgroup", json, driver))
     {
       return false;
     }
@@ -233,7 +251,7 @@ OMEZarrNGFFImageIO::CanReadFile(const char * filename)
     {
       return false; // unsupported zarr format
     }
-    if (!jsonRead(std::string(filename) + "/.zattrs", json))
+    if (!jsonRead(std::string(filename) + "/.zattrs", json, driver))
     {
       return false;
     }
@@ -265,10 +283,10 @@ OMEZarrNGFFImageIO::CanReadFile(const char * filename)
 thread_local tensorstore::TensorStore<> store; // initialized by ReadImageInformation/ReadArrayMetadata
 
 void
-OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path)
+OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
 {
   auto openFuture =
-    tensorstore::Open({ { "driver", "zarr" }, { "kvstore", { { "driver", "file" }, { "path", path } } } },
+    tensorstore::Open({ { "driver", "zarr" }, { "kvstore", { { "driver", driver }, { "path", path } } } },
                       tsContext,
                       tensorstore::OpenMode::open,
                       tensorstore::RecheckCached{ false },
@@ -345,10 +363,11 @@ void
 OMEZarrNGFFImageIO::ReadImageInformation()
 {
   nlohmann::json json;
+  std::string    driver = getKVstoreDriver(this->GetFileName());
 
-  bool status = jsonRead(std::string(this->GetFileName()) + "/.zgroup", json);
+  bool status = jsonRead(std::string(this->GetFileName()) + "/.zgroup", json, driver);
   assert(json.at("zarr_format").get<int>() == 2); // only v2 for now
-  status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json);
+  status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json, driver);
   json = json.at("multiscales")[0]; // multiscales must be present in OME-NGFF
   auto version = json.at("version").get<std::string>();
   if (version == "0.4" || version == "0.3" || version == "0.2" || version == "0.1")
@@ -400,7 +419,7 @@ OMEZarrNGFFImageIO::ReadImageInformation()
 
   // TODO: parse stuff from "metadata" object into metadata dictionary
 
-  ReadArrayMetadata(std::string(this->GetFileName()) + "/" + path);
+  ReadArrayMetadata(std::string(this->GetFileName()) + "/" + path, driver);
 }
 
 // We call tensorstoreToITKComponentType for each type.
@@ -454,9 +473,11 @@ OMEZarrNGFFImageIO::CanWriteFile(const char * name)
 void
 OMEZarrNGFFImageIO::WriteImageInformation()
 {
+  std::string driver = getKVstoreDriver(this->GetFileName());
+
   nlohmann::json group;
   group["zarr_format"] = 2;
-  writeJson(group, std::string(this->GetFileName()) + "/.zgroup");
+  writeJson(group, std::string(this->GetFileName()) + "/.zgroup", driver);
 
   unsigned dim = this->GetNumberOfDimensions();
 
@@ -490,7 +511,7 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 
   nlohmann::json zattrs;
   zattrs["multiscales"] = multiscales;
-  writeJson(zattrs, std::string(this->GetFileName()) + "/.zattrs");
+  writeJson(zattrs, std::string(this->GetFileName()) + "/.zattrs", driver);
 }
 
 
@@ -522,7 +543,7 @@ OMEZarrNGFFImageIO::WriteImageInformation()
     auto openFuture = tensorstore::Open(                                                              \
       {                                                                                               \
         { "driver", "zarr" },                                                                         \
-        { "kvstore", { { "driver", "file" }, { "path", this->m_FileName + "/" + path } } },           \
+        { "kvstore", { { "driver", driver }, { "path", this->m_FileName + "/" + path } } },           \
         { "metadata",                                                                                 \
           {                                                                                           \
             { "compressor", { { "id", "blosc" } } },                                                  \
@@ -545,6 +566,14 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 void
 OMEZarrNGFFImageIO::Write(const void * buffer)
 {
+  std::filesystem::path file(this->GetFileName());
+  if (std::filesystem::is_regular_file(file))
+  {
+    // work around current limitation of TensorStore's ZIP support
+    // by deleting the existing zip file
+    std::filesystem::remove(file);
+  }
+
   this->WriteImageInformation();
 
   if (itkToTensorstoreComponentType(this->GetComponentType()) == tensorstore::dtype_v<void>)
@@ -574,6 +603,8 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   {
     dtype = "<";
   }
+
+  std::string driver = getKVstoreDriver(this->GetFileName());
 
   if (false) // start with a plain "if"
   {}         // so element statements can all be "else if"

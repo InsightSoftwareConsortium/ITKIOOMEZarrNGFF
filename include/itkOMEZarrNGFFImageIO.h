@@ -126,7 +126,7 @@ protected:
 
   /** Read a single array and set relevant metadata. */
   void
-  ReadArrayMetadata(std::string path);
+  ReadArrayMetadata(std::string path, std::string driver);
 
   /** Sets the requested dimension, and initializes spatial metadata to identity. */
   void
