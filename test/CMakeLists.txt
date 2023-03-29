@@ -6,7 +6,7 @@ set(IOOMEZarrNGFFTests
 
 CreateTestDriver(IOOMEZarrNGFF "${IOOMEZarrNGFF-Test_LIBRARIES}" "${IOOMEZarrNGFFTests}")
 
-# itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTest
+# itk_add_test(NAME IOOMEZarrNGFF_SmallSpectra_nrrd
 #   COMMAND IOOMEZarrNGFFTestDriver
 #     --compare
 #       DATA{Baseline/SmallSpectra.nrrd}
@@ -16,7 +16,7 @@ CreateTestDriver(IOOMEZarrNGFF "${IOOMEZarrNGFF-Test_LIBRARIES}" "${IOOMEZarrNGF
 #       ${ITK_TEST_OUTPUT_DIR}/SmallSpectra.nrrd
 #   )
 # 
-# itk_add_test(NAME itkOMEZarrNGFFImageIOWriteConvertTest
+# itk_add_test(NAME IOOMEZarrNGFF_SmallSpectra_zip
 #   COMMAND IOOMEZarrNGFFTestDriver
 #     --compare
 #       DATA{Input/SmallSpectra.zip}
@@ -27,7 +27,7 @@ CreateTestDriver(IOOMEZarrNGFF "${IOOMEZarrNGFF-Test_LIBRARIES}" "${IOOMEZarrNGF
 #   )
 
 # 2D test with identity metadata
-itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestCT1
+itk_add_test(NAME IOOMEZarrNGFF_cthead1_mha
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
       DATA{Input/cthead1.mha}
@@ -38,7 +38,7 @@ itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestCT1
   )
 
 # 3D test image with non-identity spacing
-itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestDzZ_T1seg
+itk_add_test(NAME IOOMEZarrNGFF_DzZ_T1seg
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
       DATA{Input/DzZ_Seeds.seg.nrrd}
@@ -49,7 +49,7 @@ itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestDzZ_T1seg
   )
 
 # 3D test image with non-identity origin and spacing
-itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTest_OriginSpacing
+itk_add_test(NAME IOOMEZarrNGFF_OriginSpacing
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
       DATA{Input/PV6.0_FLASH_FLOAT32.mha}
@@ -59,7 +59,7 @@ itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTest_OriginSpacing
       ${ITK_TEST_OUTPUT_DIR}/PV6.0_FLASH_FLOAT32.zarr
   )
 
-itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestCT1zip
+itk_add_test(NAME IOOMEZarrNGFF_cthead1_zipWrite
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
       DATA{Input/cthead1.mha}
@@ -69,7 +69,7 @@ itk_add_test(NAME itkOMEZarrNGFFImageIOReadConvertTestCT1zip
       ${ITK_TEST_OUTPUT_DIR}/cthead1.zip
   )
 
-itk_add_test(NAME itkOMEZarrNGFFImageIOWriteConvertTestCT1zip
+itk_add_test(NAME IOOMEZarrNGFF_cthead1_zipRead
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
       DATA{Baseline/cthead1.zip}
