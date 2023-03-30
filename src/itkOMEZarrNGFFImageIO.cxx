@@ -21,8 +21,6 @@
 #include "itkIntTypes.h"
 #include "itkByteSwapper.h"
 
-#include <filesystem>
-
 #include "tensorstore/context.h"
 #include "tensorstore/open.h"
 #include "tensorstore/index_space/dim_expression.h"
@@ -31,7 +29,7 @@
 
 namespace itk
 {
-static tensorstore::Context tsContext = tensorstore::Context::Default();
+thread_local tensorstore::Context tsContext = tensorstore::Context::Default();
 
 OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
 {
@@ -39,11 +37,13 @@ OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
   this->AddSupportedWriteExtension(".zr2");
   this->AddSupportedWriteExtension(".zr3");
   this->AddSupportedWriteExtension(".zip");
+  this->AddSupportedWriteExtension(".memory");
 
   this->AddSupportedReadExtension(".zarr");
   this->AddSupportedReadExtension(".zr2");
   this->AddSupportedReadExtension(".zr3");
   this->AddSupportedReadExtension(".zip");
+  this->AddSupportedWriteExtension(".memory");
 
   this->Self::SetCompressor("");
   this->Self::SetMaximumCompressionLevel(9);
@@ -178,7 +178,7 @@ getKVstoreDriver(std::string path)
   {
     return "file";
   }
-  if (path.substr(path.size() - 4) == ".zip")
+  if (path.substr(path.size() - 4) == ".zip" || path.substr(path.size() - 7) == ".memory")
   {
     return "zip";
   }
@@ -212,7 +212,7 @@ jsonRead(std::string path, nlohmann::json & result, std::string driver)
 {
   // Reading JSON via TensorStore allows it to be in the cloud
   auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
-                       { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } })
+                       { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } }, tsContext)
                        .result()
                        .value();
 
@@ -566,14 +566,7 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 void
 OMEZarrNGFFImageIO::Write(const void * buffer)
 {
-  std::filesystem::path file(this->GetFileName());
-  if (std::filesystem::is_regular_file(file))
-  {
-    // work around current limitation of TensorStore's ZIP support
-    // by deleting the existing zip file
-    std::filesystem::remove(file);
-  }
-
+  tsContext = tensorstore::Context::Default(); // start with clean zip handles
   this->WriteImageInformation();
 
   if (itkToTensorstoreComponentType(this->GetComponentType()) == tensorstore::dtype_v<void>)
@@ -622,6 +615,9 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   {
     itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
   }
+
+  // Create a new context to close the open zip handles
+  tsContext = tensorstore::Context::Default();
 }
 
 } // end namespace itk

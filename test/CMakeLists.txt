@@ -2,6 +2,7 @@ itk_module_test()
 
 set(IOOMEZarrNGFFTests
   itkOMEZarrNGFFImageIOTest.cxx
+  itkOMEZarrNGFFInMemoryTest.cxx
   )
 
 CreateTestDriver(IOOMEZarrNGFF "${IOOMEZarrNGFF-Test_LIBRARIES}" "${IOOMEZarrNGFFTests}")
@@ -77,4 +78,14 @@ itk_add_test(NAME IOOMEZarrNGFF_cthead1_zipRead
     itkOMEZarrNGFFImageIOTest
       DATA{Baseline/cthead1.zip}
       ${ITK_TEST_OUTPUT_DIR}/cthead1.mha
+  )
+
+itk_add_test(NAME IOOMEZarrNGFF_inMemory_zip
+  COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/cthead1.zip}
+      ${ITK_TEST_OUTPUT_DIR}/memory.zip
+    itkOMEZarrNGFFInMemoryTest
+      DATA{Baseline/cthead1.zip}
+      ${ITK_TEST_OUTPUT_DIR}/memory.zip
   )

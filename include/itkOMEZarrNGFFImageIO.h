@@ -70,6 +70,16 @@ public:
     return false;
   }
 
+  /** Special in-memory zip interface. An address needs to be provided in
+  * the "file name", using pattern address.memory, where address is a
+  * decimal representation of BufferInfo's address.
+  * Sample filename: "12341234.memory". */
+  using BufferInfo = struct
+  {
+    char * pointer;
+    size_t size;
+  };
+
   /*-------- This part of the interfaces deals with reading data. ----- */
 
   /** Determine the file type. Returns true if this ImageIO can read the
