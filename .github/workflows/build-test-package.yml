@@ -203,7 +203,7 @@ jobs:
       run: |
         export ITK_PACKAGE_VERSION=${{ env.itk-wheel-tag }}
         export ITKPYTHONPACKAGE_TAG=${{ env.ITKPythonPackage-git-tag }}
-        export MACOSX_DEPLOYMENT_TARGET=10.14
+        export MACOSX_DEPLOYMENT_TARGET=10.15
         pwd
         ./macpython-download-cache-and-build-module-wheels.sh
 
