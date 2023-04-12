@@ -36,10 +36,10 @@ jobs:
       run: |
         sudo xcode-select -s "/Applications/Xcode_13.2.1.app"
 
-    - name: Set up Python 3.8
+    - name: Set up Python 3.9
       uses: actions/setup-python@v4
       with:
-        python-version: "3.8"
+        python-version: "3.9"
 
     - uses: shogo82148/actions-setup-perl@v1
     - uses: ilammy/setup-nasm@v1
@@ -151,7 +151,7 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        python-version: ["37", "38", "39", "310", "311"]
+        python-version: ["38", "39", "310", "311"]
 
     steps:
     - uses: actions/checkout@v3
@@ -218,7 +218,7 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        python-version-minor: ["7", "8", "9", "10", "11"]
+        python-version-minor: ["8", "9", "10", "11"]
 
     steps:
     - name: Get specific version of CMake, Ninja
