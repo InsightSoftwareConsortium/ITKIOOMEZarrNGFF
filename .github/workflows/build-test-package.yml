@@ -5,7 +5,7 @@ on: [push,pull_request]
 env:
   itk-git-tag: "v5.3.0"
   itk-wheel-tag: "v5.3.0"
-  ITKPythonPackage-git-tag: "f91e8681dfe226eb1226b97dfed9bafff2e9b289"
+  ITKPythonPackage-git-tag: "ee05fd4fa5feedc32afbed32b84b9c9eb0518036"
 
 jobs:
   build-test-cxx:
@@ -180,6 +180,8 @@ jobs:
     runs-on: macos-12
     strategy:
       max-parallel: 2
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
 
     steps:
     - uses: actions/checkout@v3
@@ -205,7 +207,29 @@ jobs:
         export ITKPYTHONPACKAGE_TAG=${{ env.ITKPythonPackage-git-tag }}
         export MACOSX_DEPLOYMENT_TARGET=10.15
         pwd
-        ./macpython-download-cache-and-build-module-wheels.sh
+        ./macpython-download-cache-and-build-module-wheels.sh "${{ matrix.python-version }}"
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+
+    - name: Validate build output
+      shell: bash
+      run: |
+        python -m pip install twine
+        ls dist/
+
+        WHEEL_PATTERN="dist/itk_*macosx*.whl"
+        EXPECTED_WHEEL_COUNT=1
+
+        WHEEL_COUNT=`(ls ${WHEEL_PATTERN} | wc -l)`
+        if (( ${WHEEL_COUNT} != ${EXPECTED_WHEEL_COUNT} )); then
+          echo "Expected ${EXPECTED_WHEEL_COUNT} wheels but found ${WHEEL_COUNT}"
+          exit 1
+        fi
+
+        python -m twine check ${WHEEL_PATTERN}
 
     - name: Publish Python package as GitHub Artifact
       uses: actions/upload-artifact@v3
