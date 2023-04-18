@@ -64,28 +64,28 @@ itk_add_test(NAME IOOMEZarrNGFF_cthead1_zipWrite
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
       DATA{Input/cthead1.mha}
-      ${ITK_TEST_OUTPUT_DIR}/cthead1.zip
+      ${ITK_TEST_OUTPUT_DIR}/cthead1.zarr.zip
     itkOMEZarrNGFFImageIOTest
       DATA{Input/cthead1.mha}
-      ${ITK_TEST_OUTPUT_DIR}/cthead1.zip
+      ${ITK_TEST_OUTPUT_DIR}/cthead1.zarr.zip
   )
 
 itk_add_test(NAME IOOMEZarrNGFF_cthead1_zipRead
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
-      DATA{Baseline/cthead1.zip}
+      DATA{Baseline/cthead1.zarr.zip}
       ${ITK_TEST_OUTPUT_DIR}/cthead1.mha
     itkOMEZarrNGFFImageIOTest
-      DATA{Baseline/cthead1.zip}
+      DATA{Baseline/cthead1.zarr.zip}
       ${ITK_TEST_OUTPUT_DIR}/cthead1.mha
   )
 
 itk_add_test(NAME IOOMEZarrNGFF_inMemory_zip
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
-      DATA{Baseline/cthead1.zip}
+      DATA{Baseline/cthead1.zarr.zip}
       ${ITK_TEST_OUTPUT_DIR}/memory.zip
     itkOMEZarrNGFFInMemoryTest
-      DATA{Baseline/cthead1.zip}
+      DATA{Baseline/cthead1.zarr.zip}
       ${ITK_TEST_OUTPUT_DIR}/memory.zip
   )
