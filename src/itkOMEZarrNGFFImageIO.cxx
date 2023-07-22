@@ -321,9 +321,9 @@ addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
 {
   itkAssertOrThrowMacro(ct.is_array(), "Failed to parse coordinate transforms");
   itkAssertOrThrowMacro(ct.size() >= 1, "Expected at least one coordinate transform");
-  itkAssertOrThrowMacro(
-    ct[0].at("type") == "scale",
-    ("Expected first transform to be \"scale\" but found " + ct[0].at("type"))); // first transformation must be scale
+  itkAssertOrThrowMacro(ct[0].at("type") == "scale",
+                        ("Expected first transform to be \"scale\" but found " +
+                         std::string(ct[0].at("type")))); // first transformation must be scale
 
   nlohmann::json s = ct[0].at("scale");
   itkAssertOrThrowMacro(s.is_array(), "Failed to parse scale transform");
@@ -341,7 +341,7 @@ addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
   {
     itkAssertOrThrowMacro(ct[1].at("type") == "translation",
                           ("Expected second transform to be \"translation\" but found " +
-                           ct[1].at("type"))); // first transformation must be scale
+                           std::string(ct[1].at("type")))); // first transformation must be scale
     nlohmann::json tr = ct[1].at("translation");
     itkAssertOrThrowMacro(tr.is_array(), "Failed to parse translation transform");
     dim = tr.size();
@@ -404,11 +404,11 @@ OMEZarrNGFFImageIO::ReadImageInformation()
     addCoordinateTransformations(this, json.at("coordinateTransformations")); // dataset-level scaling
   }
   json = json.at("datasets");
-  if (this->GetDatasetIndex() > json.size())
+  if (this->GetDatasetIndex() >= json.size())
   {
     itkExceptionMacro(<< "Requested DatasetIndex of " << this->GetDatasetIndex()
-                      << " is greater than number of datasets (" << json.size() << ") which exist in OME-NGFF store '"
-                      << this->GetFileName() << "'");
+                      << " is out of range for the number of datasets (" << json.size()
+                      << ") which exist in OME-NGFF store '" << this->GetFileName() << "'");
   }
 
   json = json[this->GetDatasetIndex()];
