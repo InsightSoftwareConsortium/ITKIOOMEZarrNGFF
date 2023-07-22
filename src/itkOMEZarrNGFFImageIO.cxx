@@ -20,6 +20,7 @@
 #include "itkIOCommon.h"
 #include "itkIntTypes.h"
 #include "itkByteSwapper.h"
+#include "itkMacro.h"
 
 #include "tensorstore/context.h"
 #include "tensorstore/open.h"
@@ -306,7 +307,7 @@ OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
   }
   else
   {
-    assert(this->GetNumberOfDimensions() == dims.size());
+    itkAssertOrThrowMacro(this->GetNumberOfDimensions() == dims.size(), "Found dimension mismatch in metadata");
   }
 
   for (unsigned d = 0; d < dims.size(); ++d)
@@ -318,15 +319,16 @@ OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
 void
 addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
 {
-  assert(ct.is_array());
-  assert(ct.size() >= 1);
+  itkAssertOrThrowMacro(ct.is_array(), "Failed to parse coordinate transforms");
+  itkAssertOrThrowMacro(ct.size() >= 1, "Expected at least one coordinate transform");
+  itkAssertOrThrowMacro(
+    ct[0].at("type") == "scale",
+    ("Expected first transform to be \"scale\" but found " + ct[0].at("type"))); // first transformation must be scale
 
-
-  assert(ct[0].at("type") == "scale"); // first transformation must be scale
   nlohmann::json s = ct[0].at("scale");
-  assert(s.is_array());
+  itkAssertOrThrowMacro(s.is_array(), "Failed to parse scale transform");
   unsigned dim = s.size();
-  assert(dim == io->GetNumberOfDimensions());
+  itkAssertOrThrowMacro(dim == io->GetNumberOfDimensions(), "Found dimension mismatch in scale transform");
 
   for (unsigned d = 0; d < dim; ++d)
   {
@@ -337,11 +339,13 @@ addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
 
   if (ct.size() > 1) // there is also a translation
   {
-    assert(ct[1].at("type") == "translation"); // first transformation must be scale
+    itkAssertOrThrowMacro(ct[1].at("type") == "translation",
+                          ("Expected second transform to be \"translation\" but found " +
+                           ct[1].at("type"))); // first transformation must be scale
     nlohmann::json tr = ct[1].at("translation");
-    assert(tr.is_array());
+    itkAssertOrThrowMacro(tr.is_array(), "Failed to parse translation transform");
     dim = tr.size();
-    assert(dim == io->GetNumberOfDimensions());
+    itkAssertOrThrowMacro(dim == io->GetNumberOfDimensions(), "Found dimension mismatch in translation transform");
 
     for (unsigned d = 0; d < dim; ++d)
     {
@@ -366,7 +370,7 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   std::string    driver = getKVstoreDriver(this->GetFileName());
 
   bool status = jsonRead(std::string(this->GetFileName()) + "/.zgroup", json, driver);
-  assert(json.at("zarr_format").get<int>() == 2); // only v2 for now
+  itkAssertOrThrowMacro(json.at("zarr_format").get<int>() == 2, "Only v2 zarr format is supported"); // only v2 for now
   status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json, driver);
   json = json.at("multiscales")[0]; // multiscales must be present in OME-NGFF
   auto version = json.at("version").get<std::string>();
