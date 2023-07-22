@@ -209,7 +209,7 @@ writeJson(nlohmann::json json, std::string path, std::string driver)
 
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zattrs"
 bool
-jsonRead(std::string path, nlohmann::json & result, std::string driver)
+jsonRead(const std::string path, nlohmann::json & result, std::string driver)
 {
   // Reading JSON via TensorStore allows it to be in the cloud
   auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
@@ -369,9 +369,14 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   nlohmann::json json;
   std::string    driver = getKVstoreDriver(this->GetFileName());
 
-  bool status = jsonRead(std::string(this->GetFileName()) + "/.zgroup", json, driver);
+  const std::string zgroupFilePath(std::string(this->GetFileName()) + "/.zgroup");
+  bool              status = jsonRead(zgroupFilePath, json, driver);
+  itkAssertOrThrowMacro(status, ("Failed to read from " + zgroupFilePath));
   itkAssertOrThrowMacro(json.at("zarr_format").get<int>() == 2, "Only v2 zarr format is supported"); // only v2 for now
-  status = jsonRead(std::string(this->GetFileName()) + "/.zattrs", json, driver);
+
+  const std::string zattrsFilePath(std::string(this->GetFileName()) + "/.zattrs");
+  status = jsonRead(zattrsFilePath, json, driver);
+  itkAssertOrThrowMacro(status, ("Failed to read from " + zattrsFilePath));
   json = json.at("multiscales")[0]; // multiscales must be present in OME-NGFF
   auto version = json.at("version").get<std::string>();
   if (version == "0.4" || version == "0.3" || version == "0.2" || version == "0.1")
