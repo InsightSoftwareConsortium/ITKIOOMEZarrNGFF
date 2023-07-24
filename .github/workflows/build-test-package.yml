@@ -110,7 +110,7 @@ jobs:
           "note: prefix with the address-of operator to silence this warning"
           "warning C4722: 'riegeli::internal::UnreachableStream::~UnreachableStream': destructor never returns, potential memory leak"
           "warning C4722: 'riegeli::internal::CheckFailed::~CheckFailed': destructor never returns, potential memory leak"
-          "_deps[/\\].+-src[/\\]"  # disable all warnings from external projects
+          "_deps[/\\\\].+-src[/\\\\]"  # disable all warnings from external projects
           # the following warnings escape the above filter
           "warning: Import validate/validate.proto is unused"
           "warning:.+__builtin___memcpy_chk"
