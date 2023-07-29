@@ -71,9 +71,9 @@ public:
   }
 
   /** Special in-memory zip interface. An address needs to be provided in
-  * the "file name", using pattern address.memory, where address is a
-  * decimal representation of BufferInfo's address.
-  * Sample filename: "12341234.memory". */
+   * the "file name", using pattern address.memory, where address is a
+   * decimal representation of BufferInfo's address.
+   * Sample filename: "12341234.memory". */
   using BufferInfo = struct
   {
     char * pointer;
@@ -110,6 +110,17 @@ public:
    * that the IORegions has been set properly. */
   void
   Write(const void * buffer) override;
+
+  /** Method for supporting streaming.  Given a requested region, determine what
+   * could be the region that we can read from the file. This is called the
+   * streamable region, which will be smaller than the LargestPossibleRegion and
+   * greater or equal to the RequestedRegion.
+   *
+   * Under current behavior this simply propagates the requested region.
+   * Could be extended in the future to support chunk-based streaming.
+   */
+  ImageIORegion
+  GenerateStreamableReadRegionFromRequestedRegion(const ImageIORegion & requestedRegion) const override;
 
   /** Which resolution level is desired? */
   itkGetConstMacro(DatasetIndex, int);

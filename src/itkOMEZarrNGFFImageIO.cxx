@@ -22,14 +22,64 @@
 #include "itkByteSwapper.h"
 #include "itkMacro.h"
 
+#include "tensorstore/container_kind.h"
 #include "tensorstore/context.h"
+#include "tensorstore/index_space/dim_expression.h"
 #include "tensorstore/open.h"
+#include "tensorstore/index_space/index_domain.h"
+#include "tensorstore/index_space/index_domain_builder.h"
 #include "tensorstore/index_space/dim_expression.h"
 
 #include <nlohmann/json.hpp>
 
 namespace itk
 {
+namespace
+{
+template <typename TPixel>
+void
+ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & ioRegion, TPixel * buffer)
+{
+  if (store.domain().num_elements() == ioRegion.GetNumberOfPixels())
+  {
+    // Read the entire available voxel region.
+    // Allow tensorstore to perform any axis permutations or other index operations
+    // to map from store axes to ITK image axes.
+    auto arr = tensorstore::Array(buffer, store.domain().shape(), tensorstore::c_order);
+    tensorstore::Read(store, tensorstore::UnownedToShared(arr)).value();
+  }
+  else
+  {
+    // Read a requested voxel subregion.
+    // We cannot infer axis permutations by matching requested axis sizes.
+    // Therefore we assume that tensorstore axes are in "C-style" order
+    // with the last index as the fastest moving axis, aka "z,y,x" order,
+    // and must inverted to match ITK's "Fortran-style" order of axis indices
+    // with the first index as the fastest moving axis, aka "x,y,z" order.
+    // "C-style" is generally the default layout for new tensorstore arrays.
+    // Refer to https://google.github.io/tensorstore/driver/zarr/index.html#json-driver/zarr.metadata.order
+    //
+    // In the future this may be extended to permute axes based on
+    // OME-Zarr NGFF axis labels.
+    const auto                      dimension = ioRegion.GetImageDimension();
+    std::vector<tensorstore::Index> indices(dimension);
+    std::vector<tensorstore::Index> sizes(dimension);
+    for (size_t dim = 0; dim < dimension; ++dim)
+    {
+      // Reverse order of axes to match assumed C-style Zarr storage
+      indices[(dimension - 1) - dim] = ioRegion.GetIndex(dim);
+      sizes[(dimension - 1) - dim] = ioRegion.GetSize(dim);
+    }
+    auto indexDomain = tensorstore::IndexDomainBuilder(dimension).origin(indices).shape(sizes).Finalize().value();
+
+    auto arr = tensorstore::Array(buffer, indexDomain.shape(), tensorstore::c_order);
+    auto indexedStore = store | tensorstore::AllDims().SizedInterval(indices, sizes);
+    tensorstore::Read(indexedStore, tensorstore::UnownedToShared(arr)).value();
+  }
+}
+
+} // namespace
+
 thread_local tensorstore::Context tsContext = tensorstore::Context::Default();
 
 OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
@@ -433,41 +483,46 @@ OMEZarrNGFFImageIO::ReadImageInformation()
 
 // We call tensorstoreToITKComponentType for each type.
 // Hopefully compiler will optimize it away via constant propagation and inlining.
-#define ELEMENT_READ(typeName)                                                                        \
+#define READ_ELEMENT_IF(typeName)                                                                     \
   else if (tensorstoreToITKComponentType(tensorstore::dtype_v<typeName>) == this->GetComponentType()) \
   {                                                                                                   \
-    auto * p = reinterpret_cast<typeName *>(buffer);                                                  \
-    auto   arr = tensorstore::Array(p, store.domain().shape(), tensorstore::c_order);                 \
-    tensorstore::Read(store, tensorstore::UnownedToShared(arr)).value();                              \
+    ReadFromStore<typeName>(store, m_IORegion, reinterpret_cast<typeName *>(buffer));                 \
   }
 
 void
 OMEZarrNGFFImageIO::Read(void * buffer)
 {
+  // Use a proxy measure (voxel count) to determine whether we are reading
+  // the entire image or an image subregion.
   // This comparison needs to be done carefully, we can compare 3D and 6D regions
-  if (this->GetLargestRegion().GetNumberOfPixels() != m_IORegion.GetNumberOfPixels())
+  if (this->GetLargestRegion().GetNumberOfPixels() == m_IORegion.GetNumberOfPixels())
   {
-    // Stream the data in chunks
-    itkExceptionMacro(<< "Streamed reading is not yet implemented");
+    itkAssertOrThrowMacro(store.domain().num_elements() == m_IORegion.GetNumberOfPixels(),
+                          "Detected mismatch between store size and size of largest possible region");
   }
   else
   {
-    if (false) // start with a plain "if"
-    {}         // so element statements can all be "else if"
-    ELEMENT_READ(int8_t)
-    ELEMENT_READ(uint8_t)
-    ELEMENT_READ(int16_t)
-    ELEMENT_READ(uint16_t)
-    ELEMENT_READ(int32_t)
-    ELEMENT_READ(uint32_t)
-    ELEMENT_READ(int64_t)
-    ELEMENT_READ(uint64_t)
-    ELEMENT_READ(float)
-    ELEMENT_READ(double)
-    else
-    {
-      itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
-    }
+    // Get a requested image subregion
+    itkAssertOrThrowMacro(this->GetNumberOfComponents() == 1,
+                          "Reading an image subregion is currently supported only for single channel images");
+  }
+
+  if (false)
+  {}
+  READ_ELEMENT_IF(float)
+  READ_ELEMENT_IF(int8_t)
+  READ_ELEMENT_IF(uint8_t)
+  READ_ELEMENT_IF(int16_t)
+  READ_ELEMENT_IF(uint16_t)
+  READ_ELEMENT_IF(int32_t)
+  READ_ELEMENT_IF(uint32_t)
+  READ_ELEMENT_IF(int64_t)
+  READ_ELEMENT_IF(uint64_t)
+  READ_ELEMENT_IF(float)
+  READ_ELEMENT_IF(double)
+  else
+  {
+    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
   }
 }
 
@@ -627,6 +682,14 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
 
   // Create a new context to close the open zip handles
   tsContext = tensorstore::Context::Default();
+}
+
+
+ImageIORegion
+OMEZarrNGFFImageIO::GenerateStreamableReadRegionFromRequestedRegion(const ImageIORegion & requestedRegion) const
+{
+  // Propagate the requested region
+  return requestedRegion;
 }
 
 } // end namespace itk

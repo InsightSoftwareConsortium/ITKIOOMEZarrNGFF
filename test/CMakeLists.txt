@@ -3,6 +3,7 @@ itk_module_test()
 set(IOOMEZarrNGFFTests
   itkOMEZarrNGFFImageIOTest.cxx
   itkOMEZarrNGFFInMemoryTest.cxx
+  itkOMEZarrNGFFReadSubregionTest.cxx
   )
 
 CreateTestDriver(IOOMEZarrNGFF "${IOOMEZarrNGFF-Test_LIBRARIES}" "${IOOMEZarrNGFFTests}")
@@ -89,3 +90,15 @@ itk_add_test(NAME IOOMEZarrNGFF_inMemory_zip
       DATA{Baseline/cthead1.zarr.zip}
       ${ITK_TEST_OUTPUT_DIR}/memory.zip
   )
+  
+# 2D test with identity metadata
+itk_add_test(NAME IOOMEZarrNGFF_readSubregion
+COMMAND IOOMEZarrNGFFTestDriver
+  --compare
+    DATA{Baseline/cthead1Subregion.mha}
+    ${ITK_TEST_OUTPUT_DIR}/cthead1Subregion.mha
+  itkOMEZarrNGFFReadSubregionTest
+    DATA{Input/cthead1.mha}
+    ${ITK_TEST_OUTPUT_DIR}/cthead1.zarr
+    ${ITK_TEST_OUTPUT_DIR}/cthead1Subregion.mha
+)
