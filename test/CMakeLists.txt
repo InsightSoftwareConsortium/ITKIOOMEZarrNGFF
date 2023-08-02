@@ -1,8 +1,10 @@
 itk_module_test()
 
 set(IOOMEZarrNGFFTests
+  itkOMEZarrNGFFHTTPTest.cxx
   itkOMEZarrNGFFImageIOTest.cxx
   itkOMEZarrNGFFInMemoryTest.cxx
+  itkOMEZarrNGFFReadTest.cxx
   itkOMEZarrNGFFReadSubregionTest.cxx
   )
 
@@ -101,4 +103,18 @@ COMMAND IOOMEZarrNGFFTestDriver
     DATA{Input/cthead1.mha}
     ${ITK_TEST_OUTPUT_DIR}/cthead1.zarr
     ${ITK_TEST_OUTPUT_DIR}/cthead1Subregion.mha
+)
+
+# HTTP test with encoded test cases
+itk_add_test(
+  NAME IOOMEZarrNGFFHTTP_2D
+  COMMAND IOOMEZarrNGFFTestDriver
+    itkOMEZarrNGFFHTTPTest
+    0
+)
+itk_add_test(
+  NAME IOOMEZarrNGFFHTTP_3D
+  COMMAND IOOMEZarrNGFFTestDriver
+    itkOMEZarrNGFFHTTPTest
+    1
 )

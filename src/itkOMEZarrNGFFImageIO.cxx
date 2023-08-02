@@ -78,6 +78,29 @@ ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & io
   }
 }
 
+// Update an existing "read" specification for an "http" driver to retrieve remote files.
+// Note that an "http" driver specification may operate on an HTTP or HTTPS connection.
+void
+MakeKVStoreHTTPDriverSpec(nlohmann::json & spec, const std::string & fullPath)
+{
+  // Decompose path into a base URL and reference subpath according to TensorStore HTTP KVStore driver spec
+  // https://google.github.io/tensorstore/kvstore/http/index.html
+  spec["kvstore"] = { { "driver", "http" } };
+
+  // Naively decompose the URL into "base" and "resource" components.
+  // Generally assumes that the spec will only be used once to access a specific resource.
+  // For example, the URL "http://localhost/path/to/resource.json" will be split
+  // into components "http://localhost/path/to" and "resource.json".
+  //
+  // Could be revisited for a better root "base_url" at the top level allowing acces
+  // to multiple subpaths. For instance, decomposing the example above into
+  // "http://localhost/" and "path/to/resource.json" would allow for a given HTTP spec
+  // to be more easily reused with different subpaths.
+  //
+  spec["kvstore"]["base_url"] = fullPath.substr(0, fullPath.find_last_of("/"));
+  spec["kvstore"]["path"] = fullPath.substr(fullPath.find_last_of("/") + 1);
+}
+
 } // namespace
 
 thread_local tensorstore::Context tsContext = tensorstore::Context::Default();
@@ -229,6 +252,10 @@ getKVstoreDriver(std::string path)
   {
     return "file";
   }
+  if (path.substr(0, 4) == "http")
+  { // http or https
+    return "http";
+  }
   if (path.substr(path.size() - 4) == ".zip" || path.substr(path.size() - 7) == ".memory")
   {
     return "zip";
@@ -262,10 +289,13 @@ bool
 jsonRead(const std::string path, nlohmann::json & result, std::string driver)
 {
   // Reading JSON via TensorStore allows it to be in the cloud
-  auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
-                       { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } }, tsContext)
-                       .result()
-                       .value();
+  nlohmann::json readSpec = { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } };
+  if (driver == "http")
+  {
+    MakeKVStoreHTTPDriverSpec(readSpec, path);
+  }
+
+  auto attrs_store = tensorstore::Open<nlohmann::json, 0>(readSpec, tsContext).result().value();
 
   auto attrs_array_result = tensorstore::Read(attrs_store).result();
 
@@ -336,12 +366,17 @@ thread_local tensorstore::TensorStore<> store; // initialized by ReadImageInform
 void
 OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
 {
-  auto openFuture =
-    tensorstore::Open({ { "driver", "zarr" }, { "kvstore", { { "driver", driver }, { "path", path } } } },
-                      tsContext,
-                      tensorstore::OpenMode::open,
-                      tensorstore::RecheckCached{ false },
-                      tensorstore::ReadWriteMode::read);
+  nlohmann::json readSpec = { { "driver", "zarr" }, { "kvstore", { { "driver", driver }, { "path", path } } } };
+  if (driver == "http")
+  {
+    MakeKVStoreHTTPDriverSpec(readSpec, path);
+  }
+
+  auto openFuture = tensorstore::Open(readSpec,
+                                      tsContext,
+                                      tensorstore::OpenMode::open,
+                                      tensorstore::RecheckCached{ false },
+                                      tensorstore::ReadWriteMode::read);
   TS_EVAL_CHECK(openFuture);
   store = openFuture.value();
   auto shape_span = store.domain().shape();
