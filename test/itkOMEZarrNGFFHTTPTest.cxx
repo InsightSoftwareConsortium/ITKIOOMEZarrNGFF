@@ -155,6 +155,86 @@ test3DImage()
 
   return EXIT_SUCCESS;
 }
+
+bool
+testTimeSlice()
+{
+  // Read a subregion of an arbitrary time point from a 3D image buffer into a 2D image
+  using ImageType = itk::Image<unsigned char, 2>;
+  const std::string resourceURL = "https://s3.embl.de/i2k-2020/ngff-example-data/v0.4/tyx.ome.zarr";
+
+  auto imageIO = itk::OMEZarrNGFFImageIO::New();
+  imageIO->SetDatasetIndex(0);
+  imageIO->SetTimeIndex(2);
+
+  auto requestedRegion = itk::ImageRegion<2>();
+  requestedRegion.SetSize(itk::MakeSize(50, 50));
+  requestedRegion.SetIndex(itk::MakeIndex(100, 100));
+
+  // Set up reader
+  auto reader = itk::ImageFileReader<ImageType>::New();
+  reader->SetFileName(resourceURL);
+  reader->SetImageIO(imageIO);
+  reader->GetOutput()->SetRequestedRegion(requestedRegion);
+
+  // Read
+  reader->Update();
+
+  auto image = reader->GetOutput();
+  image->Print(std::cout);
+
+  ITK_TEST_EXPECT_EQUAL(image->GetBufferedRegion().GetSize(), requestedRegion.GetSize());
+  ITK_TEST_EXPECT_EQUAL(image->GetBufferedRegion().GetIndex(), requestedRegion.GetIndex());
+
+  typename ImageType::SpacingType expectedSpacing;
+  expectedSpacing.Fill(0.65);
+  ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), expectedSpacing);
+  ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), itk::MakePoint(0.0, 0.0));
+
+  return EXIT_SUCCESS;
+}
+
+bool
+testTimeAndChannelSlice()
+{
+  // Read a subregion of an arbitrary channel and time point from a 5D image buffer into a 3D image
+  using ImageType = itk::Image<unsigned char, 3>;
+  const std::string resourceURL = "https://s3.embl.de/i2k-2020/ngff-example-data/v0.4/tczyx.ome.zarr";
+
+  auto imageIO = itk::OMEZarrNGFFImageIO::New();
+  imageIO->SetDatasetIndex(2);
+  imageIO->SetTimeIndex(0);
+  imageIO->SetChannelIndex(0);
+
+  auto requestedRegion = itk::ImageRegion<3>();
+  requestedRegion.SetSize(itk::MakeSize(10, 20, 30));
+  requestedRegion.SetIndex(itk::MakeIndex(5, 10, 15));
+
+  // Set up reader
+  auto reader = itk::ImageFileReader<ImageType>::New();
+  reader->SetFileName(resourceURL);
+  reader->SetImageIO(imageIO);
+  reader->GetOutput()->SetRequestedRegion(requestedRegion);
+
+  // Read
+  reader->Update();
+
+  auto image = reader->GetOutput();
+  image->Print(std::cout);
+
+  ITK_TEST_EXPECT_EQUAL(image->GetBufferedRegion().GetSize(), requestedRegion.GetSize());
+  ITK_TEST_EXPECT_EQUAL(image->GetBufferedRegion().GetIndex(), requestedRegion.GetIndex());
+
+  typename ImageType::SpacingType expectedSpacing;
+  expectedSpacing.SetElement(0, 2.6);
+  expectedSpacing.SetElement(1, 2.6);
+  expectedSpacing.SetElement(2, 4.0);
+  ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), expectedSpacing);
+  ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), itk::MakePoint(0.0, 0.0, 0.0));
+
+  return EXIT_SUCCESS;
+}
+
 } // namespace
 
 int
@@ -177,6 +257,10 @@ itkOMEZarrNGFFHTTPTest(int argc, char * argv[])
     case 1:
       return test3DImage();
       break;
+    case 2:
+      return testTimeSlice();
+    case 3:
+      return testTimeAndChannelSlice();
     default:
       throw std::invalid_argument("Invalid test case ID: " + std::to_string(testCase));
   }
