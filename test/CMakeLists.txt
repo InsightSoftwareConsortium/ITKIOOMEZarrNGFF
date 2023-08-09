@@ -118,3 +118,15 @@ itk_add_test(
     itkOMEZarrNGFFHTTPTest
     1
 )
+itk_add_test(
+  NAME IOOMEZarrNGFFHTTP_TimeSlice
+  COMMAND IOOMEZarrNGFFTestDriver
+    itkOMEZarrNGFFHTTPTest
+    2
+)
+itk_add_test(
+  NAME IOOMEZarrNGFFHTTP_TimeAndChannelSlice
+  COMMAND IOOMEZarrNGFFTestDriver
+    itkOMEZarrNGFFHTTPTest
+    3
+)

@@ -38,9 +38,9 @@ namespace
 {
 template <typename TPixel>
 void
-ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & ioRegion, TPixel * buffer)
+ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & storeIORegion, TPixel * buffer)
 {
-  if (store.domain().num_elements() == ioRegion.GetNumberOfPixels())
+  if (store.domain().num_elements() == storeIORegion.GetNumberOfPixels())
   {
     // Read the entire available voxel region.
     // Allow tensorstore to perform any axis permutations or other index operations
@@ -61,14 +61,15 @@ ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & io
     //
     // In the future this may be extended to permute axes based on
     // OME-Zarr NGFF axis labels.
-    const auto                      dimension = ioRegion.GetImageDimension();
+    const auto                      dimension = store.rank();
     std::vector<tensorstore::Index> indices(dimension);
     std::vector<tensorstore::Index> sizes(dimension);
     for (size_t dim = 0; dim < dimension; ++dim)
     {
-      // Reverse order of axes to match assumed C-style Zarr storage
-      indices[(dimension - 1) - dim] = ioRegion.GetIndex(dim);
-      sizes[(dimension - 1) - dim] = ioRegion.GetSize(dim);
+      // Input IO region is assumed to already be reversed from ITK requested region
+      // to match assumed C-style Zarr storage
+      indices[dim] = storeIORegion.GetIndex(dim);
+      sizes[dim] = storeIORegion.GetSize(dim);
     }
     auto indexDomain = tensorstore::IndexDomainBuilder(dimension).origin(indices).shape(sizes).Finalize().value();
 
@@ -401,6 +402,74 @@ OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
   }
 }
 
+ImageIORegion
+OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion) const
+{
+  // Set up IO region to match known store dimensions
+  itkAssertOrThrowMacro(m_StoreAxes.size() == store.rank(), "Detected mismatch in axis count and store rank");
+  ImageIORegion storeRegion(store.rank());
+  itkAssertOrThrowMacro(storeRegion.GetImageDimension(), store.rank());
+  auto storeAxes = this->GetAxesInStoreOrder();
+
+  for (size_t storeIndex = 0; storeIndex < store.rank(); ++storeIndex)
+  {
+    auto axisName = storeAxes.at(storeIndex).name;
+
+    // Optionally slice time or channel indices
+    if (axisName == "t")
+    {
+      storeRegion.SetSize(storeIndex, 0);
+      if (m_TimeIndex == INVALID_INDEX)
+      {
+        itkWarningMacro(<< "The OME-Zarr store contains a time \"t\" axis but no time point has been specified. "
+                           "Reading along a time axis is not currently supported. Data will be read from the first "
+                           "available time point by default.");
+        storeRegion.SetIndex(storeIndex, 0);
+      }
+      else
+      {
+        storeRegion.SetIndex(storeIndex, m_TimeIndex);
+      }
+    }
+    else if (axisName == "c")
+    {
+      storeRegion.SetSize(storeIndex, 0);
+      if (m_ChannelIndex == INVALID_INDEX)
+      {
+        itkWarningMacro(<< "The OME-Zarr store contains a channel \"c\" axis but no channel index has been specified. "
+                           "Reading along a channel axis is not currently supported. Data will be read from the first "
+                           "available channel by default.");
+        storeRegion.SetIndex(storeIndex, 0);
+      }
+      else
+      {
+        storeRegion.SetIndex(storeIndex, m_ChannelIndex);
+      }
+    }
+    // Set requested region on X/Y/Z axes
+    else if (axisName == "x")
+    {
+      itkAssertOrThrowMacro(ioRegion.GetImageDimension() >= 1, "Failed to read from \"x\" axis into ITK axis \"0\"");
+      storeRegion.SetSize(storeIndex, ioRegion.GetSize(0));
+      storeRegion.SetIndex(storeIndex, ioRegion.GetIndex(0));
+    }
+    else if (axisName == "y")
+    {
+      itkAssertOrThrowMacro(ioRegion.GetImageDimension() >= 2, "Failed to read from \"y\" axis into ITK axis \"1\"");
+      storeRegion.SetSize(storeIndex, ioRegion.GetSize(1));
+      storeRegion.SetIndex(storeIndex, ioRegion.GetIndex(1));
+    }
+    else if (axisName == "z")
+    {
+      itkAssertOrThrowMacro(ioRegion.GetImageDimension() >= 3, "Failed to read from \"z\" axis into ITK axis \"2\"");
+      storeRegion.SetSize(storeIndex, ioRegion.GetSize(2));
+      storeRegion.SetIndex(storeIndex, ioRegion.GetIndex(2));
+    }
+  }
+
+  return storeRegion;
+}
+
 void
 addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
 {
@@ -478,9 +547,23 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   if (json.contains("axes")) // optional before 0.3
   {
     this->InitializeIdentityMetadata(json.at("axes").size());
+
+    m_StoreAxes.resize(json.at("axes").size());
+    auto targetIt = m_StoreAxes.rbegin();
+    for (const auto & axis : json.at("axes"))
+    {
+      *targetIt = (OMEZarrNGFFAxis{ axis.at("name"), axis.at("type"), (axis.contains("unit") ? axis.at("unit") : "") });
+      ++targetIt;
+    }
+    itkAssertOrThrowMacro(targetIt == m_StoreAxes.rend(),
+                          "Internal error: failed to fully parse axes from OME-Zarr metadata");
   }
   else
   {
+    if (version == "0.4")
+    {
+      itkExceptionMacro(<< "\"axes\" field is missing from OME-Zarr image metadata at " << zattrsFilePath);
+    }
     this->SetNumberOfDimensions(0);
   }
 
@@ -521,7 +604,7 @@ OMEZarrNGFFImageIO::ReadImageInformation()
 #define READ_ELEMENT_IF(typeName)                                                                     \
   else if (tensorstoreToITKComponentType(tensorstore::dtype_v<typeName>) == this->GetComponentType()) \
   {                                                                                                   \
-    ReadFromStore<typeName>(store, m_IORegion, reinterpret_cast<typeName *>(buffer));                 \
+    ReadFromStore<typeName>(store, storeIORegion, reinterpret_cast<typeName *>(buffer));              \
   }
 
 void
@@ -541,6 +624,7 @@ OMEZarrNGFFImageIO::Read(void * buffer)
     itkAssertOrThrowMacro(this->GetNumberOfComponents() == 1,
                           "Reading an image subregion is currently supported only for single channel images");
   }
+  auto storeIORegion = this->ConfigureTensorstoreIORegion(m_IORegion);
 
   if (false)
   {}

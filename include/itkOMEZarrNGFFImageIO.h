@@ -22,10 +22,28 @@
 
 
 #include <fstream>
+#include <string>
+#include <vector>
 #include "itkImageIOBase.h"
 
 namespace itk
 {
+/** \class OMEZarrNGFFAxis
+ *
+ * \brief Represent an OME-Zarr NGFF axis
+ *
+ * Open Microscopy Environment Zarr Next Generation File Format
+ * specification can be found at https://github.com/ome/ngff
+ *
+ * \ingroup IOOMEZarrNGFF
+ */
+struct IOOMEZarrNGFF_EXPORT OMEZarrNGFFAxis
+{
+  std::string name;
+  std::string type;
+  std::string unit;
+};
+
 /** \class OMEZarrNGFFImageIO
  *
  * \brief Read and write OMEZarrNGFF images.
@@ -54,6 +72,8 @@ public:
   itkTypeMacro(OMEZarrNGFFImageIO, ImageIOBase);
 
   static constexpr unsigned MaximumDimension = 5; // OME-NGFF specifies up to 5D data
+  static constexpr int      INVALID_INDEX = -1;   // for specifying enumerated axis slice indices
+  using AxesCollectionType = std::vector<OMEZarrNGFFAxis>;
 
   /** The different types of ImageIO's can support data of varying
    * dimensionality. For example, some file formats are strictly 2D
@@ -126,6 +146,20 @@ public:
   itkGetConstMacro(DatasetIndex, int);
   itkSetMacro(DatasetIndex, int);
 
+  /** If there is a time axis, at what index should it be sliced? */
+  itkGetConstMacro(TimeIndex, int);
+  itkSetMacro(TimeIndex, int);
+
+  /** If there are multiple channels, which one should be read? */
+  itkGetConstMacro(ChannelIndex, int);
+  itkSetMacro(ChannelIndex, int);
+
+  /** Get the available axes in the OME-Zarr store in ITK (Fortran-style) order.
+   *  This is reversed from the default C-style order of
+   *  axes as used in the Zarr / NumPy / Tensorstore interface.
+   */
+  itkGetConstMacro(StoreAxes, const AxesCollectionType &);
+
   bool
   CanStreamRead() override
   {
@@ -148,6 +182,17 @@ protected:
   /** Read a single array and set relevant metadata. */
   void
   ReadArrayMetadata(std::string path, std::string driver);
+
+  /** Process requested store region for given configuration */
+  ImageIORegion
+  ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion) const;
+
+  /** Helper method to get axes in tensorstore C-style order*/
+  AxesCollectionType
+  GetAxesInStoreOrder() const
+  {
+    return AxesCollectionType(m_StoreAxes.rbegin(), m_StoreAxes.rend());
+  }
 
   /** Sets the requested dimension, and initializes spatial metadata to identity. */
   void
@@ -182,7 +227,10 @@ protected:
   const std::vector<std::string> dimensionUnits = { "millimeter", "millimeter", "millimeter", "index", "second" };
 
 private:
-  int m_DatasetIndex = 0; // first, highest resolution scale by default
+  int                m_DatasetIndex = 0; // first, highest resolution scale by default
+  int                m_TimeIndex = INVALID_INDEX;
+  int                m_ChannelIndex = INVALID_INDEX;
+  AxesCollectionType m_StoreAxes;
 };
 } // end namespace itk
 
