@@ -405,7 +405,6 @@ OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
 ImageIORegion
 OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion) const
 {
-
   // Set up IO region to match known store dimensions
   itkAssertOrThrowMacro(m_StoreAxes.size() == store.rank(), "Detected mismatch in axis count and store rank");
   ImageIORegion storeRegion(store.rank());
