@@ -30,3 +30,11 @@ imageio = itk.OMEZarrNGFFImageIO.New()
 image = itk.imread(sys.argv[1], imageio=imageio)
 itk.imwrite(image, sys.argv[2], imageio=imageio, compression=False)
 ```
+
+Acknowledgements
+----------------
+
+ITKIOOMEZarrNGFF was developed in part by with support from:
+
+- [NIH NIMH BRAIN Initiative](https://braininitiative.nih.gov/) under award 1RF1MH126732.
+- The [Allen Institute for Neural Dynamics (AIND)](https://alleninstitute.org/division/neural-dynamics/).
