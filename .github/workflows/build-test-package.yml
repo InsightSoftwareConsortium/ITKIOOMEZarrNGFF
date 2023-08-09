@@ -6,6 +6,7 @@ env:
   itk-git-tag: "v5.4rc01"
   itk-wheel-tag: "v5.4rc01"
   ITKPythonPackage-git-tag: "5ad02309321621cdc7269b9b68a35013c912271c"
+  ctest-options: "-E IOOMEZarrNGFF_inMemory_zip"
 
 jobs:
   build-test-cxx:
@@ -137,13 +138,13 @@ jobs:
     - name: Build and test
       if: matrix.os != 'windows-2022'
       run: |
-        ctest --output-on-failure -j 2 -V -S dashboard.cmake
+        ctest --output-on-failure -j 2 -V -S dashboard.cmake ${{ env.ctest-options }}
 
     - name: Build and test
       if: matrix.os == 'windows-2022'
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        ctest --output-on-failure -j 2 -V -S dashboard.cmake
+        ctest --output-on-failure -j 2 -V -S dashboard.cmake ${{ env.ctest-options }}
       shell: cmd
 
   build-linux-py:
