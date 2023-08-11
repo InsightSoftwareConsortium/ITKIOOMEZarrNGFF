@@ -131,6 +131,8 @@ OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
 {
   Superclass::PrintSelf(os, indent);
   os << indent << "DatasetIndex: " << m_DatasetIndex << std::endl;
+  os << indent << "TimeIndex: " << m_TimeIndex << std::endl;
+  os << indent << "ChannelIndex: " << m_ChannelIndex << std::endl;
 }
 
 IOComponentEnum
@@ -625,6 +627,12 @@ OMEZarrNGFFImageIO::Read(void * buffer)
                           "Reading an image subregion is currently supported only for single channel images");
   }
   auto storeIORegion = this->ConfigureTensorstoreIORegion(m_IORegion);
+
+  if (this->GetDebug())
+  {
+    std::cout << "Preparing to read " << storeIORegion.GetNumberOfPixels() << " elements from tensorstore region "
+              << storeIORegion;
+  }
 
   if (false)
   {}
