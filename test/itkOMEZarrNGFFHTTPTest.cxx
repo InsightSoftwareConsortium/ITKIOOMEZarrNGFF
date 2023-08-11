@@ -29,8 +29,16 @@
 
 namespace
 {
+static constexpr bool USE_MHA_COMPRESSION = true;
+
+std::string
+makeOutputName(const std::string & outputPrefix, size_t datasetIndex)
+{
+  return outputPrefix + "_" + std::to_string(datasetIndex) + ".mha";
+}
+
 bool
-test2DImage()
+test2DImage(const std::string & outputPrefix)
 {
   using ImageType = itk::Image<unsigned char, 2>;
   const std::string resourceURL = "https://s3.embl.de/i2k-2020/ngff-example-data/v0.4/yx.ome.zarr";
@@ -63,6 +71,9 @@ test2DImage()
   ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), baselineImage0->GetSpacing());
   ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), baselineImage0->GetOrigin());
 
+  std::string outputFilename = makeOutputName(outputPrefix, 0);
+  itk::WriteImage(image, outputFilename, USE_MHA_COMPRESSION);
+
   // Resolution 1
   auto imageIO = itk::OMEZarrNGFFImageIO::New();
   imageIO->SetDatasetIndex(1);
@@ -77,6 +88,9 @@ test2DImage()
   ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), baselineImage1->GetSpacing());
   ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), baselineImage1->GetOrigin());
 
+  outputFilename = makeOutputName(outputPrefix, 1);
+  itk::WriteImage(image, outputFilename, USE_MHA_COMPRESSION);
+
   // Resolution 2
   imageIO->SetDatasetIndex(2);
   auto reader2 = itk::ImageFileReader<ImageType>::New();
@@ -90,11 +104,14 @@ test2DImage()
   ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), baselineImage2->GetSpacing());
   ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), baselineImage2->GetOrigin());
 
+  outputFilename = makeOutputName(outputPrefix, 2);
+  itk::WriteImage(image, outputFilename, USE_MHA_COMPRESSION);
+
   return EXIT_SUCCESS;
 }
 
 bool
-test3DImage()
+test3DImage(const std::string & outputPrefix)
 {
   using ImageType = itk::Image<unsigned char, 3>;
   const std::string resourceURL = "https://s3.embl.de/i2k-2020/ngff-example-data/v0.4/zyx.ome.zarr";
@@ -126,6 +143,9 @@ test3DImage()
   ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), baselineImage0->GetSpacing());
   ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), baselineImage0->GetOrigin());
 
+  std::string outputFilename = makeOutputName(outputPrefix, 0);
+  itk::WriteImage(image, outputFilename, USE_MHA_COMPRESSION);
+
   // Resolution 1
   auto imageIO = itk::OMEZarrNGFFImageIO::New();
   imageIO->SetDatasetIndex(1);
@@ -140,6 +160,9 @@ test3DImage()
   ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), baselineImage1->GetSpacing());
   ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), baselineImage1->GetOrigin());
 
+  outputFilename = makeOutputName(outputPrefix, 1);
+  itk::WriteImage(image, outputFilename, USE_MHA_COMPRESSION);
+
   // Resolution 2
   imageIO->SetDatasetIndex(2);
   auto reader2 = itk::ImageFileReader<ImageType>::New();
@@ -153,11 +176,14 @@ test3DImage()
   ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), baselineImage2->GetSpacing());
   ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), baselineImage2->GetOrigin());
 
+  outputFilename = makeOutputName(outputPrefix, 2);
+  itk::WriteImage(image, outputFilename, USE_MHA_COMPRESSION);
+
   return EXIT_SUCCESS;
 }
 
 bool
-testTimeSlice()
+testTimeSlice(const std::string & outputPrefix)
 {
   // Read a subregion of an arbitrary time point from a 3D image buffer into a 2D image
   using ImageType = itk::Image<unsigned char, 2>;
@@ -191,11 +217,14 @@ testTimeSlice()
   ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), expectedSpacing);
   ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), itk::MakePoint(0.0, 0.0));
 
+  std::string outputFilename = makeOutputName(outputPrefix, 0);
+  itk::WriteImage(image, outputFilename, USE_MHA_COMPRESSION);
+
   return EXIT_SUCCESS;
 }
 
 bool
-testTimeAndChannelSlice()
+testTimeAndChannelSlice(const std::string & outputPrefix)
 {
   // Read a subregion of an arbitrary channel and time point from a 5D image buffer into a 3D image
   using ImageType = itk::Image<unsigned char, 3>;
@@ -232,6 +261,9 @@ testTimeAndChannelSlice()
   ITK_TEST_EXPECT_EQUAL(image->GetSpacing(), expectedSpacing);
   ITK_TEST_EXPECT_EQUAL(image->GetOrigin(), itk::MakePoint(0.0, 0.0, 0.0));
 
+  std::string outputFilename = makeOutputName(outputPrefix, 2);
+  itk::WriteImage(image, outputFilename, USE_MHA_COMPRESSION);
+
   return EXIT_SUCCESS;
 }
 
@@ -240,27 +272,28 @@ testTimeAndChannelSlice()
 int
 itkOMEZarrNGFFHTTPTest(int argc, char * argv[])
 {
-  if (argc < 2)
+  if (argc < 3)
   {
     std::cerr << "Missing parameters." << std::endl;
     std::cerr << "Usage: " << std::endl;
-    std::cerr << itkNameOfTestExecutableMacro(argv) << " <test-case-id>" << std::endl;
+    std::cerr << itkNameOfTestExecutableMacro(argv) << " <test-case-id> <outputPrefix>" << std::endl;
     return EXIT_FAILURE;
   }
-  size_t testCase = std::atoi(argv[1]);
+  size_t            testCase = std::atoi(argv[1]);
+  const std::string outputPrefix = argv[2];
 
   switch (testCase)
   {
     case 0:
-      return test2DImage();
+      return test2DImage(outputPrefix);
       break;
     case 1:
-      return test3DImage();
+      return test3DImage(outputPrefix);
       break;
     case 2:
-      return testTimeSlice();
+      return testTimeSlice(outputPrefix);
     case 3:
-      return testTimeAndChannelSlice();
+      return testTimeAndChannelSlice(outputPrefix);
     default:
       throw std::invalid_argument("Invalid test case ID: " + std::to_string(testCase));
   }

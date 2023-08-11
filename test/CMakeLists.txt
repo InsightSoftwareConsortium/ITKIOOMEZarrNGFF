@@ -136,24 +136,49 @@ itk_add_test(
 itk_add_test(
   NAME IOOMEZarrNGFFHTTP_2D
   COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/yx_0.mha}
+      ${ITK_TEST_OUTPUT_DIR}/yx_0.mha
+    --compare
+      DATA{Baseline/yx_1.mha}
+      ${ITK_TEST_OUTPUT_DIR}/yx_1.mha
     itkOMEZarrNGFFHTTPTest
     0
+    ${ITK_TEST_OUTPUT_DIR}/yx
 )
 itk_add_test(
   NAME IOOMEZarrNGFFHTTP_3D
   COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/zyx_0.mha}
+      ${ITK_TEST_OUTPUT_DIR}/zyx_0.mha
+    --compare
+      DATA{Baseline/zyx_1.mha}
+      ${ITK_TEST_OUTPUT_DIR}/zyx_1.mha
+    --compare
+      DATA{Baseline/zyx_2.mha}
+      ${ITK_TEST_OUTPUT_DIR}/zyx_2.mha
     itkOMEZarrNGFFHTTPTest
     1
+    ${ITK_TEST_OUTPUT_DIR}/zyx
 )
 itk_add_test(
   NAME IOOMEZarrNGFFHTTP_TimeSlice
   COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/slice_tyx_0.mha}
+      ${ITK_TEST_OUTPUT_DIR}/slice_tyx_0.mha
     itkOMEZarrNGFFHTTPTest
     2
+    ${ITK_TEST_OUTPUT_DIR}/slice_tyx
 )
 itk_add_test(
   NAME IOOMEZarrNGFFHTTP_TimeAndChannelSlice
   COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/slice_tczyx_2.mha}
+      ${ITK_TEST_OUTPUT_DIR}/slice_tczyx_2.mha
     itkOMEZarrNGFFHTTPTest
     3
+    ${ITK_TEST_OUTPUT_DIR}/slice_tczyx
 )
