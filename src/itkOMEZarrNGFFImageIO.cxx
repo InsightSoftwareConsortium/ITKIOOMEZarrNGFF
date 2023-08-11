@@ -418,7 +418,7 @@ OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion)
     // Optionally slice time or channel indices
     if (axisName == "t")
     {
-      storeRegion.SetSize(storeIndex, 0);
+      storeRegion.SetSize(storeIndex, 1);
       if (m_TimeIndex == INVALID_INDEX)
       {
         itkWarningMacro(<< "The OME-Zarr store contains a time \"t\" axis but no time point has been specified. "
@@ -433,7 +433,7 @@ OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion)
     }
     else if (axisName == "c")
     {
-      storeRegion.SetSize(storeIndex, 0);
+      storeRegion.SetSize(storeIndex, 1);
       if (m_ChannelIndex == INVALID_INDEX)
       {
         itkWarningMacro(<< "The OME-Zarr store contains a channel \"c\" axis but no channel index has been specified. "
