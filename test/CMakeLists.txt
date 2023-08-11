@@ -5,6 +5,7 @@ set(IOOMEZarrNGFFTests
   itkOMEZarrNGFFImageIOTest.cxx
   itkOMEZarrNGFFInMemoryTest.cxx
   itkOMEZarrNGFFReadTest.cxx
+  itkOMEZarrNGFFReadSliceTest.cxx
   itkOMEZarrNGFFReadSubregionTest.cxx
   )
 
@@ -103,6 +104,32 @@ COMMAND IOOMEZarrNGFFTestDriver
     DATA{Input/cthead1.mha}
     ${ITK_TEST_OUTPUT_DIR}/cthead1.zarr
     ${ITK_TEST_OUTPUT_DIR}/cthead1Subregion.mha
+)
+
+itk_add_test(
+  NAME IOOMEZarrNGFF_readTimeIndex0
+  COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/simple_tyx_t0.mha}
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+    itkOMEZarrNGFFReadSliceTest
+      DATA{Input/simple_tyx.zarr.zip}
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+      2
+      0
+)
+
+itk_add_test(
+  NAME IOOMEZarrNGFF_readTimeIndex1
+  COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/simple_tyx_t1.mha}
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+    itkOMEZarrNGFFReadSliceTest
+      DATA{Input/simple_tyx.zarr.zip}
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+      2
+      1
 )
 
 # HTTP test with encoded test cases
