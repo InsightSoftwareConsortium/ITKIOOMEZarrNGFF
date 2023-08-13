@@ -5,6 +5,7 @@ set(IOOMEZarrNGFFTests
   itkOMEZarrNGFFImageIOTest.cxx
   itkOMEZarrNGFFInMemoryTest.cxx
   itkOMEZarrNGFFReadTest.cxx
+  itkOMEZarrNGFFReadSliceTest.cxx
   itkOMEZarrNGFFReadSubregionTest.cxx
   )
 
@@ -105,28 +106,79 @@ COMMAND IOOMEZarrNGFFTestDriver
     ${ITK_TEST_OUTPUT_DIR}/cthead1Subregion.mha
 )
 
+itk_add_test(
+  NAME IOOMEZarrNGFF_readTimeIndex0
+  COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/simple_tyx_t0.mha}
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+    itkOMEZarrNGFFReadSliceTest
+      DATA{Input/simple_tyx.zarr.zip}
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+      2
+      0
+)
+
+itk_add_test(
+  NAME IOOMEZarrNGFF_readTimeIndex1
+  COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/simple_tyx_t1.mha}
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+    itkOMEZarrNGFFReadSliceTest
+      DATA{Input/simple_tyx.zarr.zip}
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+      2
+      1
+)
+
 # HTTP test with encoded test cases
 itk_add_test(
   NAME IOOMEZarrNGFFHTTP_2D
   COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/yx_0.mha}
+      ${ITK_TEST_OUTPUT_DIR}/yx_0.mha
+    --compare
+      DATA{Baseline/yx_1.mha}
+      ${ITK_TEST_OUTPUT_DIR}/yx_1.mha
     itkOMEZarrNGFFHTTPTest
     0
+    ${ITK_TEST_OUTPUT_DIR}/yx
 )
 itk_add_test(
   NAME IOOMEZarrNGFFHTTP_3D
   COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/zyx_0.mha}
+      ${ITK_TEST_OUTPUT_DIR}/zyx_0.mha
+    --compare
+      DATA{Baseline/zyx_1.mha}
+      ${ITK_TEST_OUTPUT_DIR}/zyx_1.mha
+    --compare
+      DATA{Baseline/zyx_2.mha}
+      ${ITK_TEST_OUTPUT_DIR}/zyx_2.mha
     itkOMEZarrNGFFHTTPTest
     1
+    ${ITK_TEST_OUTPUT_DIR}/zyx
 )
 itk_add_test(
   NAME IOOMEZarrNGFFHTTP_TimeSlice
   COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/slice_tyx_0.mha}
+      ${ITK_TEST_OUTPUT_DIR}/slice_tyx_0.mha
     itkOMEZarrNGFFHTTPTest
     2
+    ${ITK_TEST_OUTPUT_DIR}/slice_tyx
 )
 itk_add_test(
   NAME IOOMEZarrNGFFHTTP_TimeAndChannelSlice
   COMMAND IOOMEZarrNGFFTestDriver
+    --compare
+      DATA{Baseline/slice_tczyx_2.mha}
+      ${ITK_TEST_OUTPUT_DIR}/slice_tczyx_2.mha
     itkOMEZarrNGFFHTTPTest
     3
+    ${ITK_TEST_OUTPUT_DIR}/slice_tczyx
 )

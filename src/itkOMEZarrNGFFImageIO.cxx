@@ -131,6 +131,8 @@ OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
 {
   Superclass::PrintSelf(os, indent);
   os << indent << "DatasetIndex: " << m_DatasetIndex << std::endl;
+  os << indent << "TimeIndex: " << m_TimeIndex << std::endl;
+  os << indent << "ChannelIndex: " << m_ChannelIndex << std::endl;
 }
 
 IOComponentEnum
@@ -418,7 +420,7 @@ OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion)
     // Optionally slice time or channel indices
     if (axisName == "t")
     {
-      storeRegion.SetSize(storeIndex, 0);
+      storeRegion.SetSize(storeIndex, 1);
       if (m_TimeIndex == INVALID_INDEX)
       {
         itkWarningMacro(<< "The OME-Zarr store contains a time \"t\" axis but no time point has been specified. "
@@ -433,7 +435,7 @@ OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion)
     }
     else if (axisName == "c")
     {
-      storeRegion.SetSize(storeIndex, 0);
+      storeRegion.SetSize(storeIndex, 1);
       if (m_ChannelIndex == INVALID_INDEX)
       {
         itkWarningMacro(<< "The OME-Zarr store contains a channel \"c\" axis but no channel index has been specified. "
@@ -625,6 +627,12 @@ OMEZarrNGFFImageIO::Read(void * buffer)
                           "Reading an image subregion is currently supported only for single channel images");
   }
   auto storeIORegion = this->ConfigureTensorstoreIORegion(m_IORegion);
+
+  if (this->GetDebug())
+  {
+    std::cout << "Preparing to read " << storeIORegion.GetNumberOfPixels() << " elements from tensorstore region "
+              << storeIORegion;
+  }
 
   if (false)
   {}
