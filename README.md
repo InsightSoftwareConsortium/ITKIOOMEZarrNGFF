@@ -87,7 +87,7 @@ See the [ITK Software Guide](https://itk.org/ItkSoftwareGuide.pdf) for informati
 
 ITKIOOMEZarrNGFF depends on a fork of Google's [Tensorstore](https://github.com/google/tensorstore)
 library for Zarr interoperation. The [InsightSoftwareConsortium/Tensorstore](https://github.com/InsightSoftwareConsortium/tensorstore)
-fork implements additional functionality to maintain in-memory OME-Zarr stores.
+fork implements additional zip support, both for filesystem and in memory zip reading and writing.
 
 ----------------
 
