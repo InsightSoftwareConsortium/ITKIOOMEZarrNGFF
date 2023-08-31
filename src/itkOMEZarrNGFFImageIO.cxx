@@ -635,7 +635,8 @@ OMEZarrNGFFImageIO::Read(void * buffer)
   }
 
   if (false)
-  {}
+  {
+  }
   READ_ELEMENT_IF(float)
   READ_ELEMENT_IF(int8_t)
   READ_ELEMENT_IF(uint8_t)
@@ -757,7 +758,10 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 void
 OMEZarrNGFFImageIO::Write(const void * buffer)
 {
-  tsContext = tensorstore::Context::Default(); // start with clean zip handles
+  if (m_FileName.substr(m_FileName.size() - 4) == ".zip" || m_FileName.substr(m_FileName.size() - 7) == ".memory")
+  {
+    tsContext = tensorstore::Context::Default(); // start with clean zip handles
+  }
   this->WriteImageInformation();
 
   if (itkToTensorstoreComponentType(this->GetComponentType()) == tensorstore::dtype_v<void>)
@@ -791,7 +795,8 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   std::string driver = getKVstoreDriver(this->GetFileName());
 
   if (false) // start with a plain "if"
-  {}         // so element statements can all be "else if"
+  {
+  } // so element statements can all be "else if"
   ELEMENT_WRITE(int8_t)
   ELEMENT_WRITE(uint8_t)
   ELEMENT_WRITE(int16_t)
@@ -807,8 +812,13 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
     itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
   }
 
-  // Create a new context to close the open zip handles
-  tsContext = tensorstore::Context::Default();
+  if (m_FileName.substr(m_FileName.size() - 4) == ".zip" || m_FileName.substr(m_FileName.size() - 7) == ".memory")
+  {
+    // Attempt to read a non-existent file from the in-memory zip to close the current one
+    nlohmann::json temp;
+    bool           wasRead = jsonRead(m_EmptyZipFileName + "/non-existent.json", temp, "zip");
+    assert(wasRead == false);
+  }
 }
 
 

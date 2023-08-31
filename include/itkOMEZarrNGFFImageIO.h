@@ -100,6 +100,14 @@ public:
     size_t size;
   };
 
+  /** Construct a "magic" file name from the provided bufferInfo. */
+  static std::string
+  MakeMemoryFileName(const itk::OMEZarrNGFFImageIO::BufferInfo & bufferInfo)
+  {
+    size_t bufferInfoAddress = reinterpret_cast<size_t>(&bufferInfo);
+    return std::to_string(bufferInfoAddress) + ".memory";
+  }
+
   /*-------- This part of the interfaces deals with reading data. ----- */
 
   /** Determine the file type. Returns true if this ImageIO can read the
@@ -231,6 +239,11 @@ private:
   int                m_TimeIndex = INVALID_INDEX;
   int                m_ChannelIndex = INVALID_INDEX;
   AxesCollectionType m_StoreAxes;
+
+  const static unsigned m_EmptyZipSize = 22;
+  char                  m_EmptyZip[m_EmptyZipSize] = "PK\x05\x06"; // the rest is filled with zeroes
+  const BufferInfo      m_EmptyZipBufferInfo{ m_EmptyZip, m_EmptyZipSize };
+  const std::string     m_EmptyZipFileName = MakeMemoryFileName(m_EmptyZipBufferInfo);
 };
 } // end namespace itk
 

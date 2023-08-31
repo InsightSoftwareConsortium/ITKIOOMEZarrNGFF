@@ -57,8 +57,7 @@ doTest(const char * inputFileName, const char * outputFileName)
 
   itk::OMEZarrNGFFImageIO::BufferInfo bufferInfo{ buffer.data(), buffer.size() };
 
-  size_t      bufferInfoAddress = reinterpret_cast<size_t>(&bufferInfo);
-  std::string memAddress = std::to_string(bufferInfoAddress) + ".memory";
+  std::string memAddress = itk::OMEZarrNGFFImageIO::MakeMemoryFileName(bufferInfo);
 
   reader->SetFileName(memAddress);
   ITK_TRY_EXPECT_NO_EXCEPTION(reader->Update());
@@ -83,6 +82,7 @@ doTest(const char * inputFileName, const char * outputFileName)
   writer->SetImageIO(zarrIO);
   ITK_TRY_EXPECT_NO_EXCEPTION(writer->Update());
 
+  // Write zip bitstream to disk
   std::ofstream oFile(outputFileName, std::ios::binary);
   oFile.write(bufferInfo.pointer, bufferInfo.size);
   free(bufferInfo.pointer);
