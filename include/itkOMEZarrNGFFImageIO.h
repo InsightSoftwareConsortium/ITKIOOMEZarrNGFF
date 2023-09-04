@@ -240,10 +240,12 @@ private:
   int                m_ChannelIndex = INVALID_INDEX;
   AxesCollectionType m_StoreAxes;
 
-  const static unsigned m_EmptyZipSize = 22;
-  char                  m_EmptyZip[m_EmptyZipSize] = "PK\x05\x06"; // the rest is filled with zeroes
-  const BufferInfo      m_EmptyZipBufferInfo{ m_EmptyZip, m_EmptyZipSize };
-  const std::string     m_EmptyZipFileName = MakeMemoryFileName(m_EmptyZipBufferInfo);
+  // An empty zip file consists of 22 bytes of "end of central directory" record. More:
+  // https://github.com/google/tensorstore/blob/45565464b9f9e2567144d780c3bef365ee3c125a/tensorstore/internal/compression/zip_details.h#L64-L76
+  constexpr static unsigned m_EmptyZipSize = 22;
+  char                      m_EmptyZip[m_EmptyZipSize] = "PK\x05\x06"; // the rest is filled with zeroes
+  const BufferInfo          m_EmptyZipBufferInfo{ m_EmptyZip, m_EmptyZipSize };
+  const std::string         m_EmptyZipFileName = MakeMemoryFileName(m_EmptyZipBufferInfo);
 };
 } // end namespace itk
 
