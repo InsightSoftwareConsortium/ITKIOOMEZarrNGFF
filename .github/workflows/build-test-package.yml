@@ -6,7 +6,7 @@ env:
   itk-git-tag: "v5.4rc01"
   itk-wheel-tag: "v5.4rc01"
   ITKPythonPackage-git-tag: "5ad02309321621cdc7269b9b68a35013c912271c"
-  ctest-options: "-E IOOMEZarrNGFF_inMemory_zip"
+  ctest-options: ""
 
 jobs:
   build-test-cxx:

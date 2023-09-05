@@ -29,12 +29,14 @@
 
 namespace
 {
+
 template <typename PixelType, unsigned Dimension>
 int
 doTest(const char * inputFileName, const char * outputFileName)
 {
   using ImageType = itk::Image<PixelType, Dimension>;
 
+  //// Read the image from .zip as a baseline
   using ReaderType = itk::ImageFileReader<ImageType>;
   typename ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName(inputFileName);
@@ -45,24 +47,32 @@ doTest(const char * inputFileName, const char * outputFileName)
   typename ImageType::Pointer image = reader->GetOutput();
   image->DisconnectPipeline(); // this is our baseline image
 
+  //// Demonstrate reading from a raw memory buffer
+
+  // Copy zip data into memory
   // Adapted from https://stackoverflow.com/a/18816228/276168
   std::ifstream   file(inputFileName, std::ios::binary | std::ios::ate);
-  std::streamsize size = file.tellg();
+  const std::streamsize inputBufferSize = file.tellg();
   file.seekg(0, std::ios::beg);
-  std::vector<char> buffer(size);
-  if (!file.read(buffer.data(), size))
+  std::vector<char> buffer(inputBufferSize);
+  if (!file.read(buffer.data(), inputBufferSize))
   {
     itkGenericExceptionMacro(<< "Could not read the input file directly: " << inputFileName);
   }
+  file.close();
 
+  // Read the zip-compressed bitstream from memory into an ITK image
   itk::OMEZarrNGFFImageIO::BufferInfo bufferInfo{ buffer.data(), buffer.size() };
-
+  const auto inputBufferPointer = buffer.data();
   std::string memAddress = itk::OMEZarrNGFFImageIO::MakeMemoryFileName(bufferInfo);
 
-  reader->SetFileName(memAddress);
-  ITK_TRY_EXPECT_NO_EXCEPTION(reader->Update());
-  typename ImageType::Pointer memImage = reader->GetOutput();
+  typename ReaderType::Pointer memReader = ReaderType::New();
+  memReader->SetFileName(memAddress);
+  memReader->SetImageIO(itk::OMEZarrNGFFImageIO::New());
+  ITK_TRY_EXPECT_NO_EXCEPTION(memReader->Update());
+  typename ImageType::Pointer memImage = memReader->GetOutput();
 
+  // Validate both read methods returned the same image
   using CompareType = itk::Testing::ComparisonImageFilter<ImageType, ImageType>;
   typename CompareType::Pointer comparer = CompareType::New();
   comparer->SetValidInput(image);
@@ -72,9 +82,22 @@ doTest(const char * inputFileName, const char * outputFileName)
   {
     itkGenericExceptionMacro("The image read through memory is different from the one read through file");
   }
-  buffer = std::vector<char>(); // deallocate it
 
-  bufferInfo = itk::OMEZarrNGFFImageIO::BufferInfo{};
+  // Verify a local copy of the buffer is maintained in the itk::Image
+  memImage->DisconnectPipeline(); // keep our local copy of the memory buffer
+  std::fill(buffer.begin(), buffer.end(), 0);   // reset the memory buffer in place
+  ITK_TRY_EXPECT_NO_EXCEPTION(comparer->Update()); // should not reflect buffer update
+  if (comparer->GetNumberOfPixelsWithDifferences() > 0)
+  {
+    itkGenericExceptionMacro("After deallocating the memory buffer, the image read through memory is different from "
+                             "the one read through file");
+  }
+
+  // Verify our memory buffer is still valid
+  ITK_TEST_EXPECT_EQUAL(bufferInfo.pointer, buffer.data());
+  ITK_TEST_EXPECT_EQUAL(bufferInfo.size, buffer.size());
+
+  // Write image back to in-memory buffer as a zip compressed bitstream
   using WriterType = itk::ImageFileWriter<ImageType>;
   typename WriterType::Pointer writer = WriterType::New();
   writer->SetInput(image);
@@ -82,12 +105,26 @@ doTest(const char * inputFileName, const char * outputFileName)
   writer->SetImageIO(zarrIO);
   ITK_TRY_EXPECT_NO_EXCEPTION(writer->Update());
 
-  // Write zip bitstream to disk
+  // Verify the output buffer occupies a new memory region with the expected size
+  // and that the BufferInfo object was updated in place to point to the new output buffer
+  ITK_TEST_EXPECT_EQUAL(bufferInfo.size, inputBufferSize);
+  ITK_TEST_EXPECT_TRUE(bufferInfo.pointer != inputBufferPointer);
+  ITK_TEST_EXPECT_EQUAL(itk::OMEZarrNGFFImageIO::MakeMemoryFileName(bufferInfo), memAddress);
+
+  // Write zip bitstream to disk and free the in-memory block
   std::ofstream oFile(outputFileName, std::ios::binary);
   oFile.write(bufferInfo.pointer, bufferInfo.size);
+  oFile.close();
   free(bufferInfo.pointer);
 
-  std::cout << "Test finished" << std::endl;
+  // Validate output file was written and is available for read
+  std::ifstream oFileResult(outputFileName);
+  ITK_TEST_EXPECT_TRUE(oFileResult.good());
+
+  // Validate output file can be read back in
+  auto outputImage = itk::ReadImage<ImageType>(outputFileName);
+  outputImage->Print(std::cout);
+
   return EXIT_SUCCESS;
 }
 
