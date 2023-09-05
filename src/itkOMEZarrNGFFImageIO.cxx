@@ -261,7 +261,7 @@ getKVstoreDriver(std::string path)
   }
   if (path.substr(path.size() - 4) == ".zip" || path.substr(path.size() - 7) == ".memory")
   {
-    return "zip";
+    return "zip_memory";
   }
   return "file";
 }
@@ -816,7 +816,7 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   {
     // Attempt to read a non-existent file from the in-memory zip to close the current one
     nlohmann::json temp;
-    bool           wasRead = jsonRead(m_EmptyZipFileName + "/non-existent.json", temp, "zip");
+    bool           wasRead = jsonRead(m_EmptyZipFileName + "/non-existent.json", temp, "zip_memory");
     assert(wasRead == false);
   }
 }
