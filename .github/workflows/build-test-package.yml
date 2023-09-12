@@ -112,10 +112,13 @@ jobs:
           "warning C4722: 'riegeli::internal::UnreachableStream::~UnreachableStream': destructor never returns, potential memory leak"
           "warning C4722: 'riegeli::internal::CheckFailed::~CheckFailed': destructor never returns, potential memory leak"
           "_deps[/\\\\].+-src[/\\\\]"  # disable all warnings from external projects
+          "_deps[/\\\\].+-build[/\\\\]"  # disable all warnings from external projects
           # the following warnings escape the above filter
           "warning: Import validate/validate.proto is unused"
           "warning:.+__builtin___memcpy_chk"
           "warning:.+__builtin_memchr"
+          "warning:.+__builtin_memcpy"
+          "cc1plus: warning: writing 16 bytes into a region of size 0"
           "note: source object allocated here"
           )
         set(dashboard_no_clean 1)
