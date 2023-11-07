@@ -3,9 +3,9 @@ name: Build, test, package
 on: [push,pull_request]
 
 env:
-  itk-git-tag: "v5.4rc01"
-  itk-wheel-tag: "v5.4rc01"
-  ITKPythonPackage-git-tag: "5ad02309321621cdc7269b9b68a35013c912271c"
+  itk-git-tag: "v5.4rc02"
+  itk-wheel-tag: "v5.4rc02"
+  ITKPythonPackage-git-tag: "v5.4rc02"
   ctest-options: ""
 
 jobs:
