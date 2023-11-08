@@ -287,7 +287,7 @@ jobs:
           pushd /c/P/IPP
           git remote add InsightSoftwareConsortium https://github.com/InsightSoftwareConsortium/ITKPythonPackage.git --tags
           git fetch InsightSoftwareConsortium
-          git checkout ${{ env.ITKPythonPackage-git-tag }}
+          git reset --hard ${{ env.ITKPythonPackage-git-tag }}
           git status
           popd
         else
