@@ -3,9 +3,9 @@ name: Build, test, package
 on: [push,pull_request]
 
 env:
-  itk-git-tag: "v5.4rc04"
-  itk-wheel-tag: "v5.4rc04"
-  itk-python-package-tag: "v5.4rc04"
+  itk-git-tag: "v5.4.0"
+  itk-wheel-tag: "v5.4.0"
+  itk-python-package-tag: "v5.4.0"
   itk-python-package-org: "InsightSoftwareConsortium"
   ctest-options: ""
 

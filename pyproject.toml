@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "itk-ioomezarrngff"
-version = "0.3rc2"
+version = "0.3.0"
 description = "IO for images stored in the OME-Zarr format."
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -44,7 +44,7 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "itk~=5.4rc4",
+    "itk == 5.4.*",
 ]
 
 [project.urls]
