@@ -52,7 +52,7 @@ jobs:
     - uses: ilammy/setup-nasm@v1
 
     - name: Get specific version of CMake, Ninja
-      uses: lukka/get-cmake@v3.24.2
+      uses: lukka/get-cmake@v3.29.6
 
     - name: 'Specific XCode version'
       if: matrix.os == 'macos-12'
@@ -180,6 +180,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Get specific version of CMake, Ninja
+      uses: lukka/get-cmake@v3.29.6
+
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@v1.3.1
       with:
@@ -264,7 +267,7 @@ jobs:
         sudo xcode-select -s "/Applications/Xcode_15.0.1.app"
 
     - name: Get specific version of CMake, Ninja
-      uses: lukka/get-cmake@v3.29.0
+      uses: lukka/get-cmake@v3.29.6
 
     - uses: shogo82148/actions-setup-perl@v1
     - uses: ilammy/setup-nasm@v1
@@ -330,7 +333,7 @@ jobs:
 
     steps:
     - name: Get specific version of CMake, Ninja
-      uses: lukka/get-cmake@v3.29.0
+      uses: lukka/get-cmake@v3.29.6
 
     - uses: actions/checkout@v4
       with:
