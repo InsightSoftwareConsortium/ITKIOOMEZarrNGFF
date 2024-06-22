@@ -59,7 +59,7 @@ cmake.version = ">=3.24.0"
 
 # A list of args to pass to CMake when configuring the project. Setting this in
 # config or envvar will override toml. See also ``cmake.define``.
-cmake.args = []
+cmake.args = ["-GNinja"]
 
 # A table of defines to pass to CMake when configuring the project. Additive.
 cmake.define = {}
