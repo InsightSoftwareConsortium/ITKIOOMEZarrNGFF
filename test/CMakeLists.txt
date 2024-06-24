@@ -124,10 +124,10 @@ itk_add_test(
   COMMAND IOOMEZarrNGFFTestDriver
     --compare
       DATA{Baseline/simple_tyx_t1.mha}
-      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t1.mha
     itkOMEZarrNGFFReadSliceTest
       DATA{Input/simple_tyx.zarr.zip}
-      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t0.mha
+      ${ITK_TEST_OUTPUT_DIR}/simple_tyx_t1.mha
       2
       1
 )
