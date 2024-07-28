@@ -1,6 +1,9 @@
 set(IOOMEZarrNGFF_SRCS
+  itkOMEZarrNGFFCommon.cxx
   itkOMEZarrNGFFImageIO.cxx
   itkOMEZarrNGFFImageIOFactory.cxx
+  itkOMEZarrNGFFTransformIO.cxx
+  itkOMEZarrNGFFTransformIOFactory.cxx
   )
 
 
