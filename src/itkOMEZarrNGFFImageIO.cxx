@@ -554,7 +554,7 @@ OMEZarrNGFFImageIO::ReadImageInformation()
     auto targetIt = m_StoreAxes.rbegin();
     for (const auto & axis : json.at("axes"))
     {
-      *targetIt = (OMEZarrNGFFAxis{ axis.at("name"), axis.at("type"), (axis.contains("unit") ? axis.at("unit") : "") });
+      *targetIt = (OMEZarrAxis{ axis.at("name"), axis.at("type"), (axis.contains("unit") ? axis.at("unit") : "") });
       ++targetIt;
     }
     itkAssertOrThrowMacro(targetIt == m_StoreAxes.rend(),

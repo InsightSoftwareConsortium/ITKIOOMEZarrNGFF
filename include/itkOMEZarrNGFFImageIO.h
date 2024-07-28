@@ -24,25 +24,13 @@
 #include <fstream>
 #include <string>
 #include <vector>
+
 #include "itkImageIOBase.h"
+
+#include "itkOMEZarrNGFFCommon.h"
 
 namespace itk
 {
-/** \class OMEZarrNGFFAxis
- *
- * \brief Represent an OME-Zarr NGFF axis
- *
- * Open Microscopy Environment Zarr Next Generation File Format
- * specification can be found at https://github.com/ome/ngff
- *
- * \ingroup IOOMEZarrNGFF
- */
-struct IOOMEZarrNGFF_EXPORT OMEZarrNGFFAxis
-{
-  std::string name;
-  std::string type;
-  std::string unit;
-};
 
 /** \class OMEZarrNGFFImageIO
  *
@@ -73,7 +61,7 @@ public:
 
   static constexpr unsigned MaximumDimension = 5; // OME-NGFF specifies up to 5D data
   static constexpr int      INVALID_INDEX = -1;   // for specifying enumerated axis slice indices
-  using AxesCollectionType = std::vector<OMEZarrNGFFAxis>;
+  using AxesCollectionType = std::vector<OMEZarrAxis>;
 
   /** The different types of ImageIO's can support data of varying
    * dimensionality. For example, some file formats are strictly 2D
