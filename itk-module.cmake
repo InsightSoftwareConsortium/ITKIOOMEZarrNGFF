@@ -11,6 +11,7 @@ file(READ "${MY_CURRENT_DIR}/README.md" DOCUMENTATION)
 itk_module(IOOMEZarrNGFF
   DEPENDS
     ITKIOImageBase
+    ITKIOTransformBase
     ITKIOHDF5
     ITKZLIB
   TEST_DEPENDS
@@ -18,6 +19,7 @@ itk_module(IOOMEZarrNGFF
     ITKMetaIO
   FACTORY_NAMES
     ImageIO::OMEZarrNGFF
+    TransformIO::OMEZarrNGFF
   DESCRIPTION
     "IO for images stored in zarr-backed OME-NGFF"
   EXCLUDE_FROM_DEFAULT
