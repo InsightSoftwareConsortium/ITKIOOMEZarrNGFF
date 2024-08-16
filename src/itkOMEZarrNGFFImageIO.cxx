@@ -637,7 +637,6 @@ OMEZarrNGFFImageIO::Read(void * buffer)
   if (false)
   {
   }
-  READ_ELEMENT_IF(float)
   READ_ELEMENT_IF(int8_t)
   READ_ELEMENT_IF(uint8_t)
   READ_ELEMENT_IF(int16_t)
