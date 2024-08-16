@@ -190,6 +190,33 @@ ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & st
   }
 }
 
+// Reads from the store if the specified pixel type and the ITK component type match.
+template <typename TPixel>
+bool
+ReadFromStoreIfTypesMatch(const IOComponentEnum              componentType,
+                          const tensorstore::TensorStore<> & store,
+                          const ImageIORegion &              storeIORegion,
+                          void *                             buffer)
+{
+  if (tensorstoreToITKComponentType(tensorstore::dtype_v<TPixel>) == componentType)
+  {
+    ReadFromStore(store, storeIORegion, static_cast<TPixel *>(buffer));
+    return true;
+  }
+  return false;
+}
+
+// Tries to read from the specified store, trying any of the specified pixel types.
+template <typename... TPixel>
+bool
+TryToReadFromStore(const IOComponentEnum              componentType,
+                   const tensorstore::TensorStore<> & store,
+                   const ImageIORegion &              storeIORegion,
+                   void *                             buffer)
+{
+  return (ReadFromStoreIfTypesMatch<TPixel>(componentType, store, storeIORegion, buffer) || ...);
+}
+
 // Update an existing "read" specification for an "http" driver to retrieve remote files.
 // Note that an "http" driver specification may operate on an HTTP or HTTPS connection.
 void
@@ -601,14 +628,6 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   ReadArrayMetadata(std::string(this->GetFileName()) + "/" + path, driver);
 }
 
-// We call tensorstoreToITKComponentType for each type.
-// Hopefully compiler will optimize it away via constant propagation and inlining.
-#define READ_ELEMENT_IF(typeName)                                                                     \
-  else if (tensorstoreToITKComponentType(tensorstore::dtype_v<typeName>) == this->GetComponentType()) \
-  {                                                                                                   \
-    ReadFromStore<typeName>(store, storeIORegion, reinterpret_cast<typeName *>(buffer));              \
-  }
-
 void
 OMEZarrNGFFImageIO::Read(void * buffer)
 {
@@ -634,22 +653,11 @@ OMEZarrNGFFImageIO::Read(void * buffer)
               << storeIORegion;
   }
 
-  if (false)
+  if (const IOComponentEnum componentType{ this->GetComponentType() };
+      !TryToReadFromStore<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double>(
+        componentType, store, storeIORegion, buffer))
   {
-  }
-  READ_ELEMENT_IF(int8_t)
-  READ_ELEMENT_IF(uint8_t)
-  READ_ELEMENT_IF(int16_t)
-  READ_ELEMENT_IF(uint16_t)
-  READ_ELEMENT_IF(int32_t)
-  READ_ELEMENT_IF(uint32_t)
-  READ_ELEMENT_IF(int64_t)
-  READ_ELEMENT_IF(uint64_t)
-  READ_ELEMENT_IF(float)
-  READ_ELEMENT_IF(double)
-  else
-  {
-    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
+    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(componentType));
   }
 }
 
