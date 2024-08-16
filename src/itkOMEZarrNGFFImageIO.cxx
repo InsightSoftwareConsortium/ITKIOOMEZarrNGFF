@@ -36,105 +36,6 @@ namespace itk
 {
 namespace
 {
-template <typename TPixel>
-void
-ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & storeIORegion, TPixel * buffer)
-{
-  if (store.domain().num_elements() == storeIORegion.GetNumberOfPixels())
-  {
-    // Read the entire available voxel region.
-    // Allow tensorstore to perform any axis permutations or other index operations
-    // to map from store axes to ITK image axes.
-    auto arr = tensorstore::Array(buffer, store.domain().shape(), tensorstore::c_order);
-    tensorstore::Read(store, tensorstore::UnownedToShared(arr)).value();
-  }
-  else
-  {
-    // Read a requested voxel subregion.
-    // We cannot infer axis permutations by matching requested axis sizes.
-    // Therefore we assume that tensorstore axes are in "C-style" order
-    // with the last index as the fastest moving axis, aka "z,y,x" order,
-    // and must inverted to match ITK's "Fortran-style" order of axis indices
-    // with the first index as the fastest moving axis, aka "x,y,z" order.
-    // "C-style" is generally the default layout for new tensorstore arrays.
-    // Refer to https://google.github.io/tensorstore/driver/zarr/index.html#json-driver/zarr.metadata.order
-    //
-    // In the future this may be extended to permute axes based on
-    // OME-Zarr NGFF axis labels.
-    const auto                      dimension = store.rank();
-    std::vector<tensorstore::Index> indices(dimension);
-    std::vector<tensorstore::Index> sizes(dimension);
-    for (size_t dim = 0; dim < dimension; ++dim)
-    {
-      // Input IO region is assumed to already be reversed from ITK requested region
-      // to match assumed C-style Zarr storage
-      indices[dim] = storeIORegion.GetIndex(dim);
-      sizes[dim] = storeIORegion.GetSize(dim);
-    }
-    auto indexDomain = tensorstore::IndexDomainBuilder(dimension).origin(indices).shape(sizes).Finalize().value();
-
-    auto arr = tensorstore::Array(buffer, indexDomain.shape(), tensorstore::c_order);
-    auto indexedStore = store | tensorstore::AllDims().SizedInterval(indices, sizes);
-    tensorstore::Read(indexedStore, tensorstore::UnownedToShared(arr)).value();
-  }
-}
-
-// Update an existing "read" specification for an "http" driver to retrieve remote files.
-// Note that an "http" driver specification may operate on an HTTP or HTTPS connection.
-void
-MakeKVStoreHTTPDriverSpec(nlohmann::json & spec, const std::string & fullPath)
-{
-  // Decompose path into a base URL and reference subpath according to TensorStore HTTP KVStore driver spec
-  // https://google.github.io/tensorstore/kvstore/http/index.html
-  spec["kvstore"] = { { "driver", "http" } };
-
-  // Naively decompose the URL into "base" and "resource" components.
-  // Generally assumes that the spec will only be used once to access a specific resource.
-  // For example, the URL "http://localhost/path/to/resource.json" will be split
-  // into components "http://localhost/path/to" and "resource.json".
-  //
-  // Could be revisited for a better root "base_url" at the top level allowing acces
-  // to multiple subpaths. For instance, decomposing the example above into
-  // "http://localhost/" and "path/to/resource.json" would allow for a given HTTP spec
-  // to be more easily reused with different subpaths.
-  //
-  spec["kvstore"]["base_url"] = fullPath.substr(0, fullPath.find_last_of("/"));
-  spec["kvstore"]["path"] = fullPath.substr(fullPath.find_last_of("/") + 1);
-}
-
-} // namespace
-
-thread_local tensorstore::Context tsContext = tensorstore::Context::Default();
-
-OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
-{
-  this->AddSupportedWriteExtension(".zarr");
-  this->AddSupportedWriteExtension(".zr2");
-  this->AddSupportedWriteExtension(".zr3");
-  this->AddSupportedWriteExtension(".zip");
-  this->AddSupportedWriteExtension(".memory");
-
-  this->AddSupportedReadExtension(".zarr");
-  this->AddSupportedReadExtension(".zr2");
-  this->AddSupportedReadExtension(".zr3");
-  this->AddSupportedReadExtension(".zip");
-  this->AddSupportedWriteExtension(".memory");
-
-  this->Self::SetCompressor("");
-  this->Self::SetMaximumCompressionLevel(9);
-  this->Self::SetCompressionLevel(2);
-}
-
-
-void
-OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
-{
-  Superclass::PrintSelf(os, indent);
-  os << indent << "DatasetIndex: " << m_DatasetIndex << std::endl;
-  os << indent << "TimeIndex: " << m_TimeIndex << std::endl;
-  os << indent << "ChannelIndex: " << m_ChannelIndex << std::endl;
-}
-
 IOComponentEnum
 tensorstoreToITKComponentType(const tensorstore::DataType dtype)
 {
@@ -244,6 +145,105 @@ itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
     default:
       return tensorstore::dtype_v<void>;
   }
+}
+
+template <typename TPixel>
+void
+ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & storeIORegion, TPixel * buffer)
+{
+  if (store.domain().num_elements() == storeIORegion.GetNumberOfPixels())
+  {
+    // Read the entire available voxel region.
+    // Allow tensorstore to perform any axis permutations or other index operations
+    // to map from store axes to ITK image axes.
+    auto arr = tensorstore::Array(buffer, store.domain().shape(), tensorstore::c_order);
+    tensorstore::Read(store, tensorstore::UnownedToShared(arr)).value();
+  }
+  else
+  {
+    // Read a requested voxel subregion.
+    // We cannot infer axis permutations by matching requested axis sizes.
+    // Therefore we assume that tensorstore axes are in "C-style" order
+    // with the last index as the fastest moving axis, aka "z,y,x" order,
+    // and must inverted to match ITK's "Fortran-style" order of axis indices
+    // with the first index as the fastest moving axis, aka "x,y,z" order.
+    // "C-style" is generally the default layout for new tensorstore arrays.
+    // Refer to https://google.github.io/tensorstore/driver/zarr/index.html#json-driver/zarr.metadata.order
+    //
+    // In the future this may be extended to permute axes based on
+    // OME-Zarr NGFF axis labels.
+    const auto                      dimension = store.rank();
+    std::vector<tensorstore::Index> indices(dimension);
+    std::vector<tensorstore::Index> sizes(dimension);
+    for (size_t dim = 0; dim < dimension; ++dim)
+    {
+      // Input IO region is assumed to already be reversed from ITK requested region
+      // to match assumed C-style Zarr storage
+      indices[dim] = storeIORegion.GetIndex(dim);
+      sizes[dim] = storeIORegion.GetSize(dim);
+    }
+    auto indexDomain = tensorstore::IndexDomainBuilder(dimension).origin(indices).shape(sizes).Finalize().value();
+
+    auto arr = tensorstore::Array(buffer, indexDomain.shape(), tensorstore::c_order);
+    auto indexedStore = store | tensorstore::AllDims().SizedInterval(indices, sizes);
+    tensorstore::Read(indexedStore, tensorstore::UnownedToShared(arr)).value();
+  }
+}
+
+// Update an existing "read" specification for an "http" driver to retrieve remote files.
+// Note that an "http" driver specification may operate on an HTTP or HTTPS connection.
+void
+MakeKVStoreHTTPDriverSpec(nlohmann::json & spec, const std::string & fullPath)
+{
+  // Decompose path into a base URL and reference subpath according to TensorStore HTTP KVStore driver spec
+  // https://google.github.io/tensorstore/kvstore/http/index.html
+  spec["kvstore"] = { { "driver", "http" } };
+
+  // Naively decompose the URL into "base" and "resource" components.
+  // Generally assumes that the spec will only be used once to access a specific resource.
+  // For example, the URL "http://localhost/path/to/resource.json" will be split
+  // into components "http://localhost/path/to" and "resource.json".
+  //
+  // Could be revisited for a better root "base_url" at the top level allowing acces
+  // to multiple subpaths. For instance, decomposing the example above into
+  // "http://localhost/" and "path/to/resource.json" would allow for a given HTTP spec
+  // to be more easily reused with different subpaths.
+  //
+  spec["kvstore"]["base_url"] = fullPath.substr(0, fullPath.find_last_of("/"));
+  spec["kvstore"]["path"] = fullPath.substr(fullPath.find_last_of("/") + 1);
+}
+
+} // namespace
+
+thread_local tensorstore::Context tsContext = tensorstore::Context::Default();
+
+OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
+{
+  this->AddSupportedWriteExtension(".zarr");
+  this->AddSupportedWriteExtension(".zr2");
+  this->AddSupportedWriteExtension(".zr3");
+  this->AddSupportedWriteExtension(".zip");
+  this->AddSupportedWriteExtension(".memory");
+
+  this->AddSupportedReadExtension(".zarr");
+  this->AddSupportedReadExtension(".zr2");
+  this->AddSupportedReadExtension(".zr3");
+  this->AddSupportedReadExtension(".zip");
+  this->AddSupportedWriteExtension(".memory");
+
+  this->Self::SetCompressor("");
+  this->Self::SetMaximumCompressionLevel(9);
+  this->Self::SetCompressionLevel(2);
+}
+
+
+void
+OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
+{
+  Superclass::PrintSelf(os, indent);
+  os << indent << "DatasetIndex: " << m_DatasetIndex << std::endl;
+  os << indent << "TimeIndex: " << m_TimeIndex << std::endl;
+  os << indent << "ChannelIndex: " << m_ChannelIndex << std::endl;
 }
 
 // Returns TensorStore KvStore driver name appropriate for this path.
