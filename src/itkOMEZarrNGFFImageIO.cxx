@@ -55,7 +55,7 @@ struct TypeList
 constexpr TypeList<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double>
   supportedPixelTypes{};
 
-IOComponentEnum
+constexpr IOComponentEnum
 tensorstoreToITKComponentType(const tensorstore::DataType dtype)
 {
   switch (dtype.id())
@@ -97,7 +97,7 @@ tensorstoreToITKComponentType(const tensorstore::DataType dtype)
   }
 }
 
-tensorstore::DataType
+constexpr tensorstore::DataType
 itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
 {
   switch (itkComponentType)
