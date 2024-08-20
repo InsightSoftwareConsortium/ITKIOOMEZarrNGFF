@@ -135,7 +135,7 @@ OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
   os << indent << "ChannelIndex: " << m_ChannelIndex << std::endl;
 }
 
-IOComponentEnum
+constexpr IOComponentEnum
 tensorstoreToITKComponentType(const tensorstore::DataType dtype)
 {
   switch (dtype.id())
@@ -177,7 +177,7 @@ tensorstoreToITKComponentType(const tensorstore::DataType dtype)
   }
 }
 
-tensorstore::DataType
+constexpr tensorstore::DataType
 itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
 {
   switch (itkComponentType)
