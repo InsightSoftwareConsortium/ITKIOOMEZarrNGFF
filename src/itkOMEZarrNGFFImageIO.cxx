@@ -246,6 +246,10 @@ itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
   }
 }
 
+// Variable template, ensuring that tensorstoreToITKComponentType is evaluated at compile-time.
+template <typename T>
+static constexpr IOComponentEnum toITKComponentType = tensorstoreToITKComponentType(tensorstore::dtype_v<T>);
+
 // Returns TensorStore KvStore driver name appropriate for this path.
 // Options are file, zip. TODO: http, gcs (GoogleCouldStorage), etc.
 std::string
@@ -602,11 +606,10 @@ OMEZarrNGFFImageIO::ReadImageInformation()
 }
 
 // We call tensorstoreToITKComponentType for each type.
-// Hopefully compiler will optimize it away via constant propagation and inlining.
-#define READ_ELEMENT_IF(typeName)                                                                     \
-  else if (tensorstoreToITKComponentType(tensorstore::dtype_v<typeName>) == this->GetComponentType()) \
-  {                                                                                                   \
-    ReadFromStore<typeName>(store, storeIORegion, reinterpret_cast<typeName *>(buffer));              \
+#define READ_ELEMENT_IF(typeName)                                                        \
+  else if (toITKComponentType<typeName> == this->GetComponentType())                     \
+  {                                                                                      \
+    ReadFromStore<typeName>(store, storeIORegion, reinterpret_cast<typeName *>(buffer)); \
   }
 
 void
@@ -708,51 +711,51 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 
 
 // We need to specify dtype for opening. As dtype is dependent on component type, this macro is long.
-#define ELEMENT_WRITE(typeName)                                                                       \
-  else if (tensorstoreToITKComponentType(tensorstore::dtype_v<typeName>) == this->GetComponentType()) \
-  {                                                                                                   \
-    if (sizeof(typeName) == 1)                                                                        \
-    {                                                                                                 \
-      dtype = "|";                                                                                    \
-    }                                                                                                 \
-    if (std::numeric_limits<typeName>::is_integer)                                                    \
-    {                                                                                                 \
-      if (std::numeric_limits<typeName>::is_signed)                                                   \
-      {                                                                                               \
-        dtype += 'i';                                                                                 \
-      }                                                                                               \
-      else                                                                                            \
-      {                                                                                               \
-        dtype += 'u';                                                                                 \
-      }                                                                                               \
-    }                                                                                                 \
-    else                                                                                              \
-    {                                                                                                 \
-      dtype += 'f';                                                                                   \
-    }                                                                                                 \
-    dtype += std::to_string(sizeof(typeName));                                                        \
-                                                                                                      \
-    auto openFuture = tensorstore::Open(                                                              \
-      {                                                                                               \
-        { "driver", "zarr" },                                                                         \
-        { "kvstore", { { "driver", driver }, { "path", this->m_FileName + "/" + path } } },           \
-        { "metadata",                                                                                 \
-          {                                                                                           \
-            { "compressor", { { "id", "blosc" } } },                                                  \
-            { "dtype", dtype },                                                                       \
-            { "shape", shape },                                                                       \
-          } },                                                                                        \
-      },                                                                                              \
-      tsContext,                                                                                      \
-      tensorstore::OpenMode::create | tensorstore::OpenMode::delete_existing,                         \
-      tensorstore::ReadWriteMode::read_write);                                                        \
-    TS_EVAL_CHECK(openFuture);                                                                        \
-                                                                                                      \
-    auto   writeStore = openFuture.value();                                                           \
-    auto * p = reinterpret_cast<typeName const *>(buffer);                                            \
-    auto   arr = tensorstore::Array(p, shape, tensorstore::c_order);                                  \
-    auto   writeFuture = tensorstore::Write(tensorstore::UnownedToShared(arr), writeStore);           \
-    TS_EVAL_CHECK(writeFuture);                                                                       \
+#define ELEMENT_WRITE(typeName)                                                             \
+  else if (toITKComponentType<typeName> == this->GetComponentType())                        \
+  {                                                                                         \
+    if (sizeof(typeName) == 1)                                                              \
+    {                                                                                       \
+      dtype = "|";                                                                          \
+    }                                                                                       \
+    if (std::numeric_limits<typeName>::is_integer)                                          \
+    {                                                                                       \
+      if (std::numeric_limits<typeName>::is_signed)                                         \
+      {                                                                                     \
+        dtype += 'i';                                                                       \
+      }                                                                                     \
+      else                                                                                  \
+      {                                                                                     \
+        dtype += 'u';                                                                       \
+      }                                                                                     \
+    }                                                                                       \
+    else                                                                                    \
+    {                                                                                       \
+      dtype += 'f';                                                                         \
+    }                                                                                       \
+    dtype += std::to_string(sizeof(typeName));                                              \
+                                                                                            \
+    auto openFuture = tensorstore::Open(                                                    \
+      {                                                                                     \
+        { "driver", "zarr" },                                                               \
+        { "kvstore", { { "driver", driver }, { "path", this->m_FileName + "/" + path } } }, \
+        { "metadata",                                                                       \
+          {                                                                                 \
+            { "compressor", { { "id", "blosc" } } },                                        \
+            { "dtype", dtype },                                                             \
+            { "shape", shape },                                                             \
+          } },                                                                              \
+      },                                                                                    \
+      tsContext,                                                                            \
+      tensorstore::OpenMode::create | tensorstore::OpenMode::delete_existing,               \
+      tensorstore::ReadWriteMode::read_write);                                              \
+    TS_EVAL_CHECK(openFuture);                                                              \
+                                                                                            \
+    auto   writeStore = openFuture.value();                                                 \
+    auto * p = reinterpret_cast<typeName const *>(buffer);                                  \
+    auto   arr = tensorstore::Array(p, shape, tensorstore::c_order);                        \
+    auto   writeFuture = tensorstore::Write(tensorstore::UnownedToShared(arr), writeStore); \
+    TS_EVAL_CHECK(writeFuture);                                                             \
   }
 
 void
