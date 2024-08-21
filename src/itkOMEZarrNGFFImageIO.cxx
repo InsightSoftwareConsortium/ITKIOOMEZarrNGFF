@@ -36,6 +36,13 @@ namespace itk
 {
 namespace
 {
+template <typename...>
+struct TypeList
+{};
+
+constexpr TypeList<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double>
+  supportedPixelTypes{};
+
 IOComponentEnum
 tensorstoreToITKComponentType(const tensorstore::DataType dtype)
 {
@@ -209,7 +216,8 @@ ReadFromStoreIfTypesMatch(const IOComponentEnum              componentType,
 // Tries to read from the specified store, trying any of the specified pixel types.
 template <typename... TPixel>
 bool
-TryToReadFromStore(const IOComponentEnum              componentType,
+TryToReadFromStore(TypeList<TPixel...>,
+                   const IOComponentEnum              componentType,
                    const tensorstore::TensorStore<> & store,
                    const ImageIORegion &              storeIORegion,
                    void *                             buffer)
@@ -654,8 +662,7 @@ OMEZarrNGFFImageIO::Read(void * buffer)
   }
 
   if (const IOComponentEnum componentType{ this->GetComponentType() };
-      !TryToReadFromStore<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double>(
-        componentType, store, storeIORegion, buffer))
+      !TryToReadFromStore(supportedPixelTypes, componentType, store, storeIORegion, buffer))
   {
     itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(componentType));
   }
