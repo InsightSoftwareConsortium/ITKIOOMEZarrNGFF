@@ -33,14 +33,14 @@
 #include <nlohmann/json.hpp>
 
 // Evaluate tensorstore future (statement) and error-check the result.
-#define TS_EVAL_CHECK(statement)                                   \
-  {                                                                \
-    auto result = statement.result();                              \
-    if (!result.ok()) /* error */                                  \
-    {                                                              \
-      itkExceptionMacro("tensorstore error: " << result.status()); \
-    }                                                              \
-  }                                                                \
+#define TS_EVAL_CHECK(statement)                                          \
+  {                                                                       \
+    auto result = statement.result();                                     \
+    if (!result.ok()) /* error */                                         \
+    {                                                                     \
+      itkGenericExceptionMacro("tensorstore error: " << result.status()); \
+    }                                                                     \
+  }                                                                       \
   ITK_NOOP_STATEMENT
 
 
@@ -255,6 +255,92 @@ TryToReadFromStore(TypeList<TPixel...>,
                    void *                             buffer)
 {
   return (ReadFromStoreIfTypesMatch<TPixel>(componentType, store, storeIORegion, buffer) || ...);
+}
+
+// Writes to the store if the specified pixel type and the ITK component type match.
+template <typename TPixel>
+bool
+WriteToStoreIfTypesMatch(const IOComponentEnum        componentType,
+                         tensorstore::TensorStore<> & store,
+                         tensorstore::Context &       tsContext,
+                         const std::string &          fileName,
+                         const std::string &          path,
+                         const std::vector<int64_t> & shape,
+                         const void * const           buffer)
+{
+  if (tensorstoreToITKComponentType(tensorstore::dtype_v<TPixel>) == componentType)
+  {
+    std::string dtype;
+    // we prefer to write using our own endianness, so no conversion is necessary
+    if (ByteSwapper<int>::SystemIsBigEndian())
+    {
+      dtype = ">";
+    }
+    else
+    {
+      dtype = "<";
+    }
+
+    if (sizeof(TPixel) == 1)
+    {
+      dtype = "|";
+    }
+    if (std::numeric_limits<TPixel>::is_integer)
+    {
+      if (std::numeric_limits<TPixel>::is_signed)
+      {
+        dtype += 'i';
+      }
+      else
+      {
+        dtype += 'u';
+      }
+    }
+    else
+    {
+      dtype += 'f';
+    }
+    dtype += std::to_string(sizeof(TPixel));
+
+    auto openFuture = tensorstore::Open(
+      {
+        { "driver", "zarr" },
+        { "kvstore", { { "driver", getKVstoreDriver(fileName) }, { "path", fileName + "/" + path } } },
+        { "metadata",
+          {
+            { "compressor", { { "id", "blosc" } } },
+            { "dtype", dtype },
+            { "shape", shape },
+          } },
+      },
+      tsContext,
+      tensorstore::OpenMode::create | tensorstore::OpenMode::delete_existing,
+      tensorstore::ReadWriteMode::read_write);
+    TS_EVAL_CHECK(openFuture);
+
+    auto   writeStore = openFuture.value();
+    auto * p = static_cast<TPixel const *>(buffer);
+    auto   arr = tensorstore::Array(p, shape, tensorstore::c_order);
+    auto   writeFuture = tensorstore::Write(tensorstore::UnownedToShared(arr), writeStore);
+    TS_EVAL_CHECK(writeFuture);
+    return true;
+  }
+  return false;
+}
+
+// Tries to write to the specified store, trying any of the specified pixel types.
+template <typename... TPixel>
+bool
+TryToWriteToStore(TypeList<TPixel...>,
+                  const IOComponentEnum        componentType,
+                  tensorstore::TensorStore<> & store,
+                  tensorstore::Context &       tsContext,
+                  const std::string &          fileName,
+                  const std::string &          path,
+                  const std::vector<int64_t> & shape,
+                  const void * const           buffer)
+{
+  return (WriteToStoreIfTypesMatch<TPixel>(componentType, store, tsContext, fileName, path, shape, buffer) || ...);
 }
 
 // Update an existing "read" specification for an "http" driver to retrieve remote files.
@@ -721,54 +807,6 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 }
 
 
-// We need to specify dtype for opening. As dtype is dependent on component type, this macro is long.
-#define ELEMENT_WRITE(typeName)                                                                       \
-  else if (tensorstoreToITKComponentType(tensorstore::dtype_v<typeName>) == this->GetComponentType()) \
-  {                                                                                                   \
-    if (sizeof(typeName) == 1)                                                                        \
-    {                                                                                                 \
-      dtype = "|";                                                                                    \
-    }                                                                                                 \
-    if (std::numeric_limits<typeName>::is_integer)                                                    \
-    {                                                                                                 \
-      if (std::numeric_limits<typeName>::is_signed)                                                   \
-      {                                                                                               \
-        dtype += 'i';                                                                                 \
-      }                                                                                               \
-      else                                                                                            \
-      {                                                                                               \
-        dtype += 'u';                                                                                 \
-      }                                                                                               \
-    }                                                                                                 \
-    else                                                                                              \
-    {                                                                                                 \
-      dtype += 'f';                                                                                   \
-    }                                                                                                 \
-    dtype += std::to_string(sizeof(typeName));                                                        \
-                                                                                                      \
-    auto openFuture = tensorstore::Open(                                                              \
-      {                                                                                               \
-        { "driver", "zarr" },                                                                         \
-        { "kvstore", { { "driver", driver }, { "path", this->m_FileName + "/" + path } } },           \
-        { "metadata",                                                                                 \
-          {                                                                                           \
-            { "compressor", { { "id", "blosc" } } },                                                  \
-            { "dtype", dtype },                                                                       \
-            { "shape", shape },                                                                       \
-          } },                                                                                        \
-      },                                                                                              \
-      tsContext,                                                                                      \
-      tensorstore::OpenMode::create | tensorstore::OpenMode::delete_existing,                         \
-      tensorstore::ReadWriteMode::read_write);                                                        \
-    TS_EVAL_CHECK(openFuture);                                                                        \
-                                                                                                      \
-    auto   writeStore = openFuture.value();                                                           \
-    auto * p = reinterpret_cast<typeName const *>(buffer);                                            \
-    auto   arr = tensorstore::Array(p, shape, tensorstore::c_order);                                  \
-    auto   writeFuture = tensorstore::Write(tensorstore::UnownedToShared(arr), writeStore);           \
-    TS_EVAL_CHECK(writeFuture);                                                                       \
-  }
-
 void
 OMEZarrNGFFImageIO::Write(const void * buffer)
 {
@@ -797,33 +835,7 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
     shape[shape.size() - 1 - d] = dSize; // convert IJK into KJI
   }
 
-  std::string dtype;
-  // we prefer to write using our own endianness, so no conversion is necessary
-  if (ByteSwapper<int>::SystemIsBigEndian())
-  {
-    dtype = ">";
-  }
-  else
-  {
-    dtype = "<";
-  }
-
-  std::string driver = getKVstoreDriver(this->GetFileName());
-
-  if (false) // start with a plain "if"
-  {
-  } // so element statements can all be "else if"
-  ELEMENT_WRITE(int8_t)
-  ELEMENT_WRITE(uint8_t)
-  ELEMENT_WRITE(int16_t)
-  ELEMENT_WRITE(uint16_t)
-  ELEMENT_WRITE(int32_t)
-  ELEMENT_WRITE(uint32_t)
-  ELEMENT_WRITE(int64_t)
-  ELEMENT_WRITE(uint64_t)
-  ELEMENT_WRITE(float)
-  ELEMENT_WRITE(double)
-  else
+  if (!TryToWriteToStore(supportedPixelTypes, componentType, store, tsContext, m_FileName, path, shape, buffer))
   {
     itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(componentType));
   }
