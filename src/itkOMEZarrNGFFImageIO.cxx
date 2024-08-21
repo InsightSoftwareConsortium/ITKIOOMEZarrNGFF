@@ -166,6 +166,26 @@ itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
   }
 }
 
+// Returns TensorStore KvStore driver name appropriate for this path.
+// Options are file, zip. TODO: http, gcs (GoogleCouldStorage), etc.
+std::string
+getKVstoreDriver(std::string path)
+{
+  if (path.size() < 4)
+  {
+    return "file";
+  }
+  if (path.substr(0, 4) == "http")
+  { // http or https
+    return "http";
+  }
+  if (path.substr(path.size() - 4) == ".zip" || path.substr(path.size() - 7) == ".memory")
+  {
+    return "zip_memory";
+  }
+  return "file";
+}
+
 template <typename TPixel>
 void
 ReadFromStore(const tensorstore::TensorStore<> & store, const ImageIORegion & storeIORegion, TPixel * buffer)
@@ -291,26 +311,6 @@ OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
   os << indent << "DatasetIndex: " << m_DatasetIndex << std::endl;
   os << indent << "TimeIndex: " << m_TimeIndex << std::endl;
   os << indent << "ChannelIndex: " << m_ChannelIndex << std::endl;
-}
-
-// Returns TensorStore KvStore driver name appropriate for this path.
-// Options are file, zip. TODO: http, gcs (GoogleCouldStorage), etc.
-std::string
-getKVstoreDriver(std::string path)
-{
-  if (path.size() < 4)
-  {
-    return "file";
-  }
-  if (path.substr(0, 4) == "http")
-  { // http or https
-    return "http";
-  }
-  if (path.substr(path.size() - 4) == ".zip" || path.substr(path.size() - 7) == ".memory")
-  {
-    return "zip_memory";
-  }
-  return "file";
 }
 
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zgroup"
