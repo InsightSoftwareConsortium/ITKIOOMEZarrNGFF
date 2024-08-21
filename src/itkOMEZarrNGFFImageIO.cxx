@@ -771,9 +771,11 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   }
   this->WriteImageInformation();
 
-  if (itkToTensorstoreComponentType(this->GetComponentType()) == tensorstore::dtype_v<void>)
+  const IOComponentEnum componentType{ this->GetComponentType() };
+
+  if (itkToTensorstoreComponentType(componentType) == tensorstore::dtype_v<void>)
   {
-    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
+    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(componentType));
   }
 
   std::vector<int64_t> shape(this->GetNumberOfDimensions());
@@ -816,7 +818,7 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   ELEMENT_WRITE(double)
   else
   {
-    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(this->GetComponentType()));
+    itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(componentType));
   }
 
   if (m_FileName.substr(m_FileName.size() - 4) == ".zip" || m_FileName.substr(m_FileName.size() - 7) == ".memory")
