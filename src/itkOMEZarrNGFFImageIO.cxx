@@ -32,6 +32,18 @@
 
 #include <nlohmann/json.hpp>
 
+// Evaluate tensorstore future (statement) and error-check the result.
+#define TS_EVAL_CHECK(statement)                                   \
+  {                                                                \
+    auto result = statement.result();                              \
+    if (!result.ok()) /* error */                                  \
+    {                                                              \
+      itkExceptionMacro("tensorstore error: " << result.status()); \
+    }                                                              \
+  }                                                                \
+  ITK_NOOP_STATEMENT
+
+
 namespace itk
 {
 namespace
@@ -386,18 +398,6 @@ OMEZarrNGFFImageIO::CanReadFile(const char * filename)
   }
   // return this->HasSupportedWriteExtension(filename, true);
 }
-
-// Evaluate tensorstore future (statement) and error-check the result.
-#define TS_EVAL_CHECK(statement)                                   \
-  {                                                                \
-    auto result = statement.result();                              \
-    if (!result.ok()) /* error */                                  \
-    {                                                              \
-      itkExceptionMacro("tensorstore error: " << result.status()); \
-    }                                                              \
-  }                                                                \
-  ITK_NOOP_STATEMENT
-
 
 thread_local tensorstore::TensorStore<> store; // initialized by ReadImageInformation/ReadArrayMetadata
 
