@@ -374,9 +374,14 @@ MakeKVStoreHTTPDriverSpec(nlohmann::json & spec, const std::string & fullPath)
 
 } // namespace
 
-thread_local tensorstore::Context tsContext = tensorstore::Context::Default();
+struct OMEZarrNGFFImageIO::TensorStoreData
+{
+  tensorstore::Context       tsContext{ tensorstore::Context::Default() };
+  tensorstore::TensorStore<> store{};
+};
 
 OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
+  : m_TensorStoreData(std::make_unique<TensorStoreData>())
 {
   this->AddSupportedWriteExtension(".zarr");
   this->AddSupportedWriteExtension(".zr2");
@@ -395,6 +400,8 @@ OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
   this->Self::SetCompressionLevel(2);
 }
 
+OMEZarrNGFFImageIO::~OMEZarrNGFFImageIO() = default;
+
 
 void
 OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
@@ -407,7 +414,7 @@ OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
 
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zgroup"
 void
-writeJson(nlohmann::json json, std::string path, std::string driver)
+writeJson(nlohmann::json json, std::string path, std::string driver, tensorstore::Context& tsContext)
 {
   auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
                        { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } },
@@ -428,7 +435,7 @@ writeJson(nlohmann::json json, std::string path, std::string driver)
 
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zattrs"
 bool
-jsonRead(const std::string path, nlohmann::json & result, std::string driver)
+jsonRead(const std::string path, nlohmann::json & result, std::string driver, tensorstore::Context& tsContext)
 {
   // Reading JSON via TensorStore allows it to be in the cloud
   nlohmann::json readSpec = { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } };
@@ -466,7 +473,7 @@ OMEZarrNGFFImageIO::CanReadFile(const char * filename)
   {
     std::string    driver = getKVstoreDriver(filename);
     nlohmann::json json;
-    if (!jsonRead(std::string(filename) + "/.zgroup", json, driver))
+    if (!jsonRead(std::string(filename) + "/.zgroup", json, driver, m_TensorStoreData->tsContext))
     {
       return false;
     }
@@ -474,7 +481,7 @@ OMEZarrNGFFImageIO::CanReadFile(const char * filename)
     {
       return false; // unsupported zarr format
     }
-    if (!jsonRead(std::string(filename) + "/.zattrs", json, driver))
+    if (!jsonRead(std::string(filename) + "/.zattrs", json, driver, m_TensorStoreData->tsContext))
     {
       return false;
     }
@@ -491,8 +498,6 @@ OMEZarrNGFFImageIO::CanReadFile(const char * filename)
   // return this->HasSupportedWriteExtension(filename, true);
 }
 
-thread_local tensorstore::TensorStore<> store; // initialized by ReadImageInformation/ReadArrayMetadata
-
 void
 OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
 {
@@ -503,15 +508,15 @@ OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
   }
 
   auto openFuture = tensorstore::Open(readSpec,
-                                      tsContext,
+                                      m_TensorStoreData->tsContext,
                                       tensorstore::OpenMode::open,
                                       tensorstore::RecheckCached{ false },
                                       tensorstore::ReadWriteMode::read);
   TS_EVAL_CHECK(openFuture);
-  store = openFuture.value();
-  auto shape_span = store.domain().shape();
+  m_TensorStoreData->store = openFuture.value();
+  auto shape_span = m_TensorStoreData->store.domain().shape();
 
-  tensorstore::DataType dtype = store.dtype();
+  tensorstore::DataType dtype = m_TensorStoreData->store.dtype();
   this->SetComponentType(tensorstoreToITKComponentType(dtype));
 
   std::vector<int64_t> dims(shape_span.rbegin(), shape_span.rend()); // convert KJI into IJK
@@ -534,13 +539,15 @@ OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
 ImageIORegion
 OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion) const
 {
+  const auto storeRank = m_TensorStoreData->store.rank(); 
+
   // Set up IO region to match known store dimensions
-  itkAssertOrThrowMacro(m_StoreAxes.size() == store.rank(), "Detected mismatch in axis count and store rank");
-  ImageIORegion storeRegion(store.rank());
-  itkAssertOrThrowMacro(storeRegion.GetImageDimension(), store.rank());
+  itkAssertOrThrowMacro(m_StoreAxes.size() == storeRank, "Detected mismatch in axis count and store rank");
+  ImageIORegion storeRegion(storeRank);
+  itkAssertOrThrowMacro(storeRegion.GetImageDimension(), storeRank);
   auto storeAxes = this->GetAxesInStoreOrder();
 
-  for (size_t storeIndex = 0; storeIndex < store.rank(); ++storeIndex)
+  for (size_t storeIndex = 0; storeIndex < storeRank; ++storeIndex)
   {
     auto axisName = storeAxes.at(storeIndex).name;
 
@@ -651,12 +658,12 @@ OMEZarrNGFFImageIO::ReadImageInformation()
   std::string    driver = getKVstoreDriver(this->GetFileName());
 
   const std::string zgroupFilePath(std::string(this->GetFileName()) + "/.zgroup");
-  bool              status = jsonRead(zgroupFilePath, json, driver);
+  bool              status = jsonRead(zgroupFilePath, json, driver, m_TensorStoreData->tsContext);
   itkAssertOrThrowMacro(status, ("Failed to read from " + zgroupFilePath));
   itkAssertOrThrowMacro(json.at("zarr_format").get<int>() == 2, "Only v2 zarr format is supported"); // only v2 for now
 
   const std::string zattrsFilePath(std::string(this->GetFileName()) + "/.zattrs");
-  status = jsonRead(zattrsFilePath, json, driver);
+  status = jsonRead(zattrsFilePath, json, driver, m_TensorStoreData->tsContext);
   itkAssertOrThrowMacro(status, ("Failed to read from " + zattrsFilePath));
   json = json.at("multiscales")[0]; // multiscales must be present in OME-NGFF
   auto version = json.at("version").get<std::string>();
@@ -732,7 +739,7 @@ OMEZarrNGFFImageIO::Read(void * buffer)
   // This comparison needs to be done carefully, we can compare 3D and 6D regions
   if (this->GetLargestRegion().GetNumberOfPixels() == m_IORegion.GetNumberOfPixels())
   {
-    itkAssertOrThrowMacro(store.domain().num_elements() == m_IORegion.GetNumberOfPixels(),
+    itkAssertOrThrowMacro(m_TensorStoreData->store.domain().num_elements() == m_IORegion.GetNumberOfPixels(),
                           "Detected mismatch between store size and size of largest possible region");
   }
   else
@@ -750,7 +757,7 @@ OMEZarrNGFFImageIO::Read(void * buffer)
   }
 
   if (const IOComponentEnum componentType{ this->GetComponentType() };
-      !TryToReadFromStore(supportedPixelTypes, componentType, store, storeIORegion, buffer))
+      !TryToReadFromStore(supportedPixelTypes, componentType, m_TensorStoreData->store, storeIORegion, buffer))
   {
     itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(componentType));
   }
@@ -771,7 +778,7 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 
   nlohmann::json group;
   group["zarr_format"] = 2;
-  writeJson(group, std::string(this->GetFileName()) + "/.zgroup", driver);
+  writeJson(group, std::string(this->GetFileName()) + "/.zgroup", driver, m_TensorStoreData->tsContext);
 
   unsigned dim = this->GetNumberOfDimensions();
 
@@ -803,7 +810,7 @@ OMEZarrNGFFImageIO::WriteImageInformation()
 
   nlohmann::json zattrs;
   zattrs["multiscales"] = multiscales;
-  writeJson(zattrs, std::string(this->GetFileName()) + "/.zattrs", driver);
+  writeJson(zattrs, std::string(this->GetFileName()) + "/.zattrs", driver, m_TensorStoreData->tsContext);
 }
 
 
@@ -812,7 +819,7 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
 {
   if (m_FileName.substr(m_FileName.size() - 4) == ".zip" || m_FileName.substr(m_FileName.size() - 7) == ".memory")
   {
-    tsContext = tensorstore::Context::Default(); // start with clean zip handles
+    m_TensorStoreData->tsContext = tensorstore::Context::Default(); // start with clean zip handles
   }
   this->WriteImageInformation();
 
@@ -837,8 +844,8 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
 
   if (!TryToWriteToStore(supportedPixelTypes,
                          componentType,
-                         store,
-                         tsContext,
+                         m_TensorStoreData->store,
+                         m_TensorStoreData->tsContext,
                          m_FileName,
                          MakePath(this->GetDatasetIndex()),
                          shape,
@@ -851,7 +858,7 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   {
     // Attempt to read a non-existent file from the in-memory zip to close the current one
     nlohmann::json temp;
-    bool           wasRead = jsonRead(m_EmptyZipFileName + "/non-existent.json", temp, "zip_memory");
+    bool           wasRead = jsonRead(m_EmptyZipFileName + "/non-existent.json", temp, "zip_memory", m_TensorStoreData->tsContext);
     assert(wasRead == false);
   }
 }
