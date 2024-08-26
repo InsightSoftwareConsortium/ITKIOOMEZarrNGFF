@@ -22,6 +22,7 @@
 
 
 #include <fstream>
+#include <memory> // For unique_ptr.
 #include <string>
 #include <vector>
 #include "itkImageIOBase.h"
@@ -182,7 +183,7 @@ public:
 
 protected:
   OMEZarrNGFFImageIO();
-  ~OMEZarrNGFFImageIO() override = default;
+  ~OMEZarrNGFFImageIO() override;
 
   void
   PrintSelf(std::ostream & os, Indent indent) const override;
@@ -246,6 +247,9 @@ private:
   char                      m_EmptyZip[m_EmptyZipSize] = "PK\x05\x06"; // the rest is filled with zeroes
   const BufferInfo          m_EmptyZipBufferInfo{ m_EmptyZip, m_EmptyZipSize };
   const std::string         m_EmptyZipFileName = MakeMemoryFileName(m_EmptyZipBufferInfo);
+
+  struct TensorStoreData;
+  const std::unique_ptr<TensorStoreData> m_TensorStoreData;
 };
 } // end namespace itk
 
