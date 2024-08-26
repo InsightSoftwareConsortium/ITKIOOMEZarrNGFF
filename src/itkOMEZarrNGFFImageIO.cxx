@@ -166,6 +166,12 @@ itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
   }
 }
 
+std::string
+MakePath(const int datasetIndex)
+{
+  return 's' + std::to_string(datasetIndex);
+}
+
 // Returns TensorStore KvStore driver name appropriate for this path.
 // Options are file, zip. TODO: http, gcs (GoogleCouldStorage), etc.
 std::string
@@ -638,8 +644,6 @@ addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
   }
 }
 
-thread_local std::string path; // initialized by ReadImageInformation
-
 void
 OMEZarrNGFFImageIO::ReadImageInformation()
 {
@@ -715,11 +719,9 @@ OMEZarrNGFFImageIO::ReadImageInformation()
     }
   }
 
-  path = json.at("path").get<std::string>();
-
   // TODO: parse stuff from "metadata" object into metadata dictionary
 
-  ReadArrayMetadata(std::string(this->GetFileName()) + "/" + path, driver);
+  ReadArrayMetadata(std::string(this->GetFileName()) + "/" + json.at("path").get<std::string>(), driver);
 }
 
 void
@@ -788,12 +790,10 @@ OMEZarrNGFFImageIO::WriteImageInformation()
     spacing[d] = this->GetSpacing(dim - d - 1);
   }
 
-  path = "s" + std::to_string(this->GetDatasetIndex());
-
   nlohmann::json datasets = { { "coordinateTransformations",
                                 { { { "scale", spacing }, { "type", "scale" } },
                                   { { "translation", origin }, { "type", "translation" } } } },
-                              { "path", path } };
+                              { "path", MakePath(this->GetDatasetIndex()) } };
 
   nlohmann::json multiscales = {
     { { "axes", axes }, { "datasets", { datasets } }, { "version", "0.4" } },
@@ -835,7 +835,14 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
     shape[shape.size() - 1 - d] = dSize; // convert IJK into KJI
   }
 
-  if (!TryToWriteToStore(supportedPixelTypes, componentType, store, tsContext, m_FileName, path, shape, buffer))
+  if (!TryToWriteToStore(supportedPixelTypes,
+                         componentType,
+                         store,
+                         tsContext,
+                         m_FileName,
+                         MakePath(this->GetDatasetIndex()),
+                         shape,
+                         buffer))
   {
     itkExceptionMacro("Unsupported component type: " << GetComponentTypeAsString(componentType));
   }
