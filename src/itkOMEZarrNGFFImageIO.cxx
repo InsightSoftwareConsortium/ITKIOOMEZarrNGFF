@@ -372,46 +372,6 @@ MakeKVStoreHTTPDriverSpec(nlohmann::json & spec, const std::string & fullPath)
   spec["kvstore"]["path"] = fullPath.substr(fullPath.find_last_of("/") + 1);
 }
 
-} // namespace
-
-struct OMEZarrNGFFImageIO::TensorStoreData
-{
-  tensorstore::Context       tsContext{ tensorstore::Context::Default() };
-  tensorstore::TensorStore<> store{};
-};
-
-OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
-  : m_TensorStoreData(std::make_unique<TensorStoreData>())
-{
-  this->AddSupportedWriteExtension(".zarr");
-  this->AddSupportedWriteExtension(".zr2");
-  this->AddSupportedWriteExtension(".zr3");
-  this->AddSupportedWriteExtension(".zip");
-  this->AddSupportedWriteExtension(".memory");
-
-  this->AddSupportedReadExtension(".zarr");
-  this->AddSupportedReadExtension(".zr2");
-  this->AddSupportedReadExtension(".zr3");
-  this->AddSupportedReadExtension(".zip");
-  this->AddSupportedWriteExtension(".memory");
-
-  this->Self::SetCompressor("");
-  this->Self::SetMaximumCompressionLevel(9);
-  this->Self::SetCompressionLevel(2);
-}
-
-OMEZarrNGFFImageIO::~OMEZarrNGFFImageIO() = default;
-
-
-void
-OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
-{
-  Superclass::PrintSelf(os, indent);
-  os << indent << "DatasetIndex: " << m_DatasetIndex << std::endl;
-  os << indent << "TimeIndex: " << m_TimeIndex << std::endl;
-  os << indent << "ChannelIndex: " << m_ChannelIndex << std::endl;
-}
-
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zgroup"
 void
 writeJson(nlohmann::json json, std::string path, std::string driver, tensorstore::Context& tsContext)
@@ -464,6 +424,91 @@ jsonRead(const std::string path, nlohmann::json & result, std::string driver, te
     result = nlohmann::json::object_t();
     return false;
   }
+}
+
+void
+addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
+{
+  itkAssertOrThrowMacro(ct.is_array(), "Failed to parse coordinate transforms");
+  itkAssertOrThrowMacro(ct.size() >= 1, "Expected at least one coordinate transform");
+  itkAssertOrThrowMacro(ct[0].at("type") == "scale",
+                        ("Expected first transform to be \"scale\" but found " +
+                         std::string(ct[0].at("type")))); // first transformation must be scale
+
+  nlohmann::json s = ct[0].at("scale");
+  itkAssertOrThrowMacro(s.is_array(), "Failed to parse scale transform");
+  unsigned dim = s.size();
+  itkAssertOrThrowMacro(dim == io->GetNumberOfDimensions(), "Found dimension mismatch in scale transform");
+
+  for (unsigned d = 0; d < dim; ++d)
+  {
+    double dS = s[dim - d - 1].get<double>(); // reverse indices KJI into IJK
+    io->SetSpacing(d, dS * io->GetSpacing(d));
+    io->SetOrigin(d, dS * io->GetOrigin(d)); // TODO: should we update origin like this?
+  }
+
+  if (ct.size() > 1) // there is also a translation
+  {
+    itkAssertOrThrowMacro(ct[1].at("type") == "translation",
+                          ("Expected second transform to be \"translation\" but found " +
+                           std::string(ct[1].at("type")))); // first transformation must be scale
+    nlohmann::json tr = ct[1].at("translation");
+    itkAssertOrThrowMacro(tr.is_array(), "Failed to parse translation transform");
+    dim = tr.size();
+    itkAssertOrThrowMacro(dim == io->GetNumberOfDimensions(), "Found dimension mismatch in translation transform");
+
+    for (unsigned d = 0; d < dim; ++d)
+    {
+      double dOrigin = tr[dim - d - 1].get<double>(); // reverse indices KJI into IJK
+      io->SetOrigin(d, dOrigin + io->GetOrigin(d));
+    }
+  }
+
+  if (ct.size() > 2)
+  {
+    itkGenericOutputMacro(<< "A sequence of more than 2 transformations is specified in '" << io->GetFileName()
+                          << "'. This is currently not supported. Extra transformations are ignored.");
+  }
+}
+
+} // namespace
+
+struct OMEZarrNGFFImageIO::TensorStoreData
+{
+  tensorstore::Context       tsContext{ tensorstore::Context::Default() };
+  tensorstore::TensorStore<> store{};
+};
+
+OMEZarrNGFFImageIO::OMEZarrNGFFImageIO()
+  : m_TensorStoreData(std::make_unique<TensorStoreData>())
+{
+  this->AddSupportedWriteExtension(".zarr");
+  this->AddSupportedWriteExtension(".zr2");
+  this->AddSupportedWriteExtension(".zr3");
+  this->AddSupportedWriteExtension(".zip");
+  this->AddSupportedWriteExtension(".memory");
+
+  this->AddSupportedReadExtension(".zarr");
+  this->AddSupportedReadExtension(".zr2");
+  this->AddSupportedReadExtension(".zr3");
+  this->AddSupportedReadExtension(".zip");
+  this->AddSupportedWriteExtension(".memory");
+
+  this->Self::SetCompressor("");
+  this->Self::SetMaximumCompressionLevel(9);
+  this->Self::SetCompressionLevel(2);
+}
+
+OMEZarrNGFFImageIO::~OMEZarrNGFFImageIO() = default;
+
+
+void
+OMEZarrNGFFImageIO::PrintSelf(std::ostream & os, Indent indent) const
+{
+  Superclass::PrintSelf(os, indent);
+  os << indent << "DatasetIndex: " << m_DatasetIndex << std::endl;
+  os << indent << "TimeIndex: " << m_TimeIndex << std::endl;
+  os << indent << "ChannelIndex: " << m_ChannelIndex << std::endl;
 }
 
 bool
@@ -604,51 +649,6 @@ OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion)
   }
 
   return storeRegion;
-}
-
-void
-addCoordinateTransformations(OMEZarrNGFFImageIO * io, nlohmann::json ct)
-{
-  itkAssertOrThrowMacro(ct.is_array(), "Failed to parse coordinate transforms");
-  itkAssertOrThrowMacro(ct.size() >= 1, "Expected at least one coordinate transform");
-  itkAssertOrThrowMacro(ct[0].at("type") == "scale",
-                        ("Expected first transform to be \"scale\" but found " +
-                         std::string(ct[0].at("type")))); // first transformation must be scale
-
-  nlohmann::json s = ct[0].at("scale");
-  itkAssertOrThrowMacro(s.is_array(), "Failed to parse scale transform");
-  unsigned dim = s.size();
-  itkAssertOrThrowMacro(dim == io->GetNumberOfDimensions(), "Found dimension mismatch in scale transform");
-
-  for (unsigned d = 0; d < dim; ++d)
-  {
-    double dS = s[dim - d - 1].get<double>(); // reverse indices KJI into IJK
-    io->SetSpacing(d, dS * io->GetSpacing(d));
-    io->SetOrigin(d, dS * io->GetOrigin(d)); // TODO: should we update origin like this?
-  }
-
-  if (ct.size() > 1) // there is also a translation
-  {
-    itkAssertOrThrowMacro(ct[1].at("type") == "translation",
-                          ("Expected second transform to be \"translation\" but found " +
-                           std::string(ct[1].at("type")))); // first transformation must be scale
-    nlohmann::json tr = ct[1].at("translation");
-    itkAssertOrThrowMacro(tr.is_array(), "Failed to parse translation transform");
-    dim = tr.size();
-    itkAssertOrThrowMacro(dim == io->GetNumberOfDimensions(), "Found dimension mismatch in translation transform");
-
-    for (unsigned d = 0; d < dim; ++d)
-    {
-      double dOrigin = tr[dim - d - 1].get<double>(); // reverse indices KJI into IJK
-      io->SetOrigin(d, dOrigin + io->GetOrigin(d));
-    }
-  }
-
-  if (ct.size() > 2)
-  {
-    itkGenericOutputMacro(<< "A sequence of more than 2 transformations is specified in '" << io->GetFileName()
-                          << "'. This is currently not supported. Extra transformations are ignored.");
-  }
 }
 
 void
