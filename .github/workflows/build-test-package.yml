@@ -6,7 +6,7 @@ env:
   itk-git-tag: "v5.4.0"
   itk-wheel-tag: "v5.4.0"
   # v5.4.0 + fixes
-  itk-python-package-tag: "a52d9b596b4f0da5ddb770ee99851e5c65ca3053"
+  itk-python-package-tag: "c9bb40bcb9f99938d071435e46f44d3d2b389482"
   itk-python-package-org: "InsightSoftwareConsortium"
   ctest-options: ""
 
