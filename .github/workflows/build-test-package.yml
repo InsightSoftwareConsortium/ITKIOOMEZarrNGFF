@@ -16,7 +16,7 @@ jobs:
     strategy:
       max-parallel: 3
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-13, macos-14]
+        os: [ubuntu-22.04, windows-2022, macos-15-intel, macos-15]
         include:
           - os: ubuntu-22.04
             c-compiler: "gcc"
@@ -26,11 +26,11 @@ jobs:
             c-compiler: "cl.exe"
             cxx-compiler: "cl.exe"
             cmake-build-type: "Release"
-          - os: macos-13
+          - os: macos-15-intel
             c-compiler: "clang"
             cxx-compiler: "clang++"
             cmake-build-type: "MinSizeRel"
-          - os: macos-14
+          - os: macos-15
             c-compiler: "clang"
             cxx-compiler: "clang++"
             cmake-build-type: "MinSizeRel"
@@ -56,14 +56,9 @@ jobs:
       uses: lukka/get-cmake@v3.29.6
 
     - name: 'Specific XCode version'
-      if: matrix.os == 'macos-13'
+      if: startsWith(matrix.os, 'macos')
       run: |
-        sudo xcode-select -s "/Applications/Xcode_14.3.1.app"
-
-    - name: 'Specific XCode version'
-      if: matrix.os == 'macos-14'
-      run: |
-        sudo xcode-select -s "/Applications/Xcode_15.0.1.app"
+        sudo xcode-select -s "/Applications/Xcode_16.2.app"
 
     - name: Download ITK
       run: |
@@ -126,6 +121,8 @@ jobs:
           "ld: warning: text-based stub file"
           "Wunused-result"
           "file: .+ has no symbols"
+          "ranlib: archive library: .+ the table of contents is empty"
+          "ld: warning: no platform load command found in"
           "Wpointer-bool-conversion"
           "note: prefix with the address-of operator to silence this warning"
           "warning C4722: 'riegeli::internal::UnreachableStream::~UnreachableStream': destructor never returns, potential memory leak"
@@ -254,7 +251,7 @@ jobs:
         path: dist/*.whl
 
   build-macos-arm-py:
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       max-parallel: 2
       matrix:
@@ -265,7 +262,7 @@ jobs:
 
     - name: 'Specific XCode version'
       run: |
-        sudo xcode-select -s "/Applications/Xcode_15.0.1.app"
+        sudo xcode-select -s "/Applications/Xcode_16.2.app"
 
     - name: Get specific version of CMake, Ninja
       uses: lukka/get-cmake@v3.29.6
