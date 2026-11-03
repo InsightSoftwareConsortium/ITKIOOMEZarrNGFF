@@ -16,14 +16,14 @@
  *
  *=========================================================================*/
 
- /// This test utility may be used to validate that an OME-Zarr image can be
- /// read from disk or from an HTTP source.
- ///
- /// No attempt is made to validate input data. A summary of the retrieved image
- /// is printed to `std::cout`.
- ///
- /// Does not currently support multichannel sources.
- /// https://github.com/InsightSoftwareConsortium/ITKIOOMEZarrNGFF/issues/32
+/// This test utility may be used to validate that an OME-Zarr image can be
+/// read from disk or from an HTTP source.
+///
+/// No attempt is made to validate input data. A summary of the retrieved image
+/// is printed to `std::cout`.
+///
+/// Does not currently support multichannel sources.
+/// https://github.com/InsightSoftwareConsortium/ITKIOOMEZarrNGFF/issues/32
 
 #include <fstream>
 #include <string>
@@ -39,71 +39,70 @@
 
 namespace
 {
-    template <typename PixelType = unsigned char, size_t ImageDimension = 3>
-    void
-        doRead(const std::string& inputPath,
-            const std::string& outputPath,
-            const int timeIndex,
-            const int channelIndex,
-            const int datasetIndex)
-    {
-        using ImageType = itk::Image<PixelType, ImageDimension>;
-        auto imageReader = itk::ImageFileReader<ImageType>::New();
-        imageReader->SetFileName(inputPath);
+template <typename PixelType = unsigned char, size_t ImageDimension = 3>
+void
+doRead(const std::string & inputPath,
+       const std::string & outputPath,
+       const int           timeIndex,
+       const int           channelIndex,
+       const int           datasetIndex)
+{
+  using ImageType = itk::Image<PixelType, ImageDimension>;
+  auto imageReader = itk::ImageFileReader<ImageType>::New();
+  imageReader->SetFileName(inputPath);
 
-        auto imageIO = itk::OMEZarrNGFFImageIO::New();
-        imageIO->SetDatasetIndex(datasetIndex);
-        imageIO->SetTimeIndex(timeIndex);
-        imageIO->SetChannelIndex(channelIndex);
-        imageReader->SetImageIO(imageIO);
+  auto imageIO = itk::OMEZarrNGFFImageIO::New();
+  imageIO->SetDatasetIndex(datasetIndex);
+  imageIO->SetTimeIndex(timeIndex);
+  imageIO->SetChannelIndex(channelIndex);
+  imageReader->SetImageIO(imageIO);
 
-        imageReader->UpdateOutputInformation();
-        auto output = imageReader->GetOutput();
-        output->Print(std::cout);
+  imageReader->UpdateOutputInformation();
+  auto output = imageReader->GetOutput();
+  output->Print(std::cout);
 
-        imageReader->Update();
-        output->Print(std::cout);
+  imageReader->Update();
+  output->Print(std::cout);
 
-        using WriterType = itk::ImageFileWriter<ImageType>;
-        auto writer = WriterType::New();
-        writer->SetInput(output);
-        writer->SetFileName(outputPath);
-        writer->SetUseCompression(true);
-        writer->Update();
-    }
+  using WriterType = itk::ImageFileWriter<ImageType>;
+  auto writer = WriterType::New();
+  writer->SetInput(output);
+  writer->SetFileName(outputPath);
+  writer->SetUseCompression(true);
+  writer->Update();
+}
 } // namespace
 
 int
-itkOMEZarrNGFFReadSliceTest(int argc, char* argv[])
+itkOMEZarrNGFFReadSliceTest(int argc, char * argv[])
 {
-    if (argc < 4)
-    {
-        std::cerr << "Missing parameters." << std::endl;
-        std::cerr << "Usage: " << std::endl;
-        std::cerr << itkNameOfTestExecutableMacro(argv)
-            << " <Input> <Output> <ImageDimension> [timeIndex] [channelIndex] [datasetIndex]"
-            << std::endl;
-        return EXIT_FAILURE;
-    }
-    const char* inputFileName = argv[1];
-    const char* outputFileName = argv[2];
-    const size_t imageDimension = std::atoi(argv[3]);
-    const size_t timeIndex = (argc > 4 ? std::atoi(argv[4]) : 0);
-    const size_t channelIndex = (argc > 5 ? std::atoi(argv[5]) : 0);
-    const size_t datasetIndex = (argc > 6 ? std::atoi(argv[6]) : 0);
+  if (argc < 4)
+  {
+    std::cerr << "Missing parameters." << std::endl;
+    std::cerr << "Usage: " << std::endl;
+    std::cerr << itkNameOfTestExecutableMacro(argv)
+              << " <Input> <Output> <ImageDimension> [timeIndex] [channelIndex] [datasetIndex]" << std::endl;
+    return EXIT_FAILURE;
+  }
+  const char * inputFileName = argv[1];
+  const char * outputFileName = argv[2];
+  const size_t imageDimension = std::atoi(argv[3]);
+  const size_t timeIndex = (argc > 4 ? std::atoi(argv[4]) : 0);
+  const size_t channelIndex = (argc > 5 ? std::atoi(argv[5]) : 0);
+  const size_t datasetIndex = (argc > 6 ? std::atoi(argv[6]) : 0);
 
-    if (imageDimension == 2)
-    {
-        doRead<unsigned char, 2>(inputFileName, outputFileName, timeIndex, channelIndex, datasetIndex);
-    }
-    else if (imageDimension == 3)
-    {
-        doRead<unsigned char, 3>(inputFileName, outputFileName, timeIndex, channelIndex, datasetIndex);
-    }
-    else
-    {
-        throw std::invalid_argument("Received an invalid test case");
-    }
+  if (imageDimension == 2)
+  {
+    doRead<unsigned char, 2>(inputFileName, outputFileName, timeIndex, channelIndex, datasetIndex);
+  }
+  else if (imageDimension == 3)
+  {
+    doRead<unsigned char, 3>(inputFileName, outputFileName, timeIndex, channelIndex, datasetIndex);
+  }
+  else
+  {
+    throw std::invalid_argument("Received an invalid test case");
+  }
 
-    return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
 }

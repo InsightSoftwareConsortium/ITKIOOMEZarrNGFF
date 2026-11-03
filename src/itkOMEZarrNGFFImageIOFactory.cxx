@@ -23,12 +23,11 @@ namespace itk
 {
 OMEZarrNGFFImageIOFactory::OMEZarrNGFFImageIOFactory()
 {
-  this->RegisterOverride(
-    "itkImageIOBase",
-    "itkOMEZarrNGFFImageIO",
-    "Open Microscopy Environment Zarr Next Generation File Format",
-    true,
-    CreateObjectFunction<OMEZarrNGFFImageIO>::New());
+  this->RegisterOverride("itkImageIOBase",
+                         "itkOMEZarrNGFFImageIO",
+                         "Open Microscopy Environment Zarr Next Generation File Format",
+                         true,
+                         CreateObjectFunction<OMEZarrNGFFImageIO>::New());
 }
 
 const char *
@@ -40,7 +39,8 @@ OMEZarrNGFFImageIOFactory::GetITKSourceVersion() const
 const char *
 OMEZarrNGFFImageIOFactory::GetDescription() const
 {
-  return "OMEZarrNGFF ImageIO Factory, allows the loading of images in Open Microscopy Environment Zarr Next Generation File Format";
+  return "OMEZarrNGFF ImageIO Factory, allows the loading of images in Open Microscopy Environment Zarr Next "
+         "Generation File Format";
 }
 
 // Undocumented API used to register during static initialization.
