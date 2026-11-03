@@ -1,0 +1,3 @@
+*.h    hooks.style=clangformat
+*.hxx  hooks.style=clangformat
+*.cxx  hooks.style=clangformat

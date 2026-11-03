@@ -374,7 +374,7 @@ MakeKVStoreHTTPDriverSpec(nlohmann::json & spec, const std::string & fullPath)
 
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zgroup"
 void
-writeJson(nlohmann::json json, std::string path, std::string driver, tensorstore::Context& tsContext)
+writeJson(nlohmann::json json, std::string path, std::string driver, tensorstore::Context & tsContext)
 {
   auto attrs_store = tensorstore::Open<nlohmann::json, 0>(
                        { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } },
@@ -395,7 +395,7 @@ writeJson(nlohmann::json json, std::string path, std::string driver, tensorstore
 
 // JSON file path, e.g. "C:/Dev/ITKIOOMEZarrNGFF/v0.4/cyx.ome.zarr/.zattrs"
 bool
-jsonRead(const std::string path, nlohmann::json & result, std::string driver, tensorstore::Context& tsContext)
+jsonRead(const std::string path, nlohmann::json & result, std::string driver, tensorstore::Context & tsContext)
 {
   // Reading JSON via TensorStore allows it to be in the cloud
   nlohmann::json readSpec = { { "driver", "json" }, { "kvstore", { { "driver", driver }, { "path", path } } } };
@@ -584,7 +584,7 @@ OMEZarrNGFFImageIO::ReadArrayMetadata(std::string path, std::string driver)
 ImageIORegion
 OMEZarrNGFFImageIO::ConfigureTensorstoreIORegion(const ImageIORegion & ioRegion) const
 {
-  const auto storeRank = m_TensorStoreData->store.rank(); 
+  const auto storeRank = m_TensorStoreData->store.rank();
 
   // Set up IO region to match known store dimensions
   itkAssertOrThrowMacro(m_StoreAxes.size() == storeRank, "Detected mismatch in axis count and store rank");
@@ -858,7 +858,8 @@ OMEZarrNGFFImageIO::Write(const void * buffer)
   {
     // Attempt to read a non-existent file from the in-memory zip to close the current one
     nlohmann::json temp;
-    bool           wasRead = jsonRead(m_EmptyZipFileName + "/non-existent.json", temp, "zip_memory", m_TensorStoreData->tsContext);
+    bool           wasRead =
+      jsonRead(m_EmptyZipFileName + "/non-existent.json", temp, "zip_memory", m_TensorStoreData->tsContext);
     assert(wasRead == false);
   }
 }

@@ -51,7 +51,7 @@ doTest(const char * inputFileName, const char * outputFileName)
 
   // Copy zip data into memory
   // Adapted from https://stackoverflow.com/a/18816228/276168
-  std::ifstream   file(inputFileName, std::ios::binary | std::ios::ate);
+  std::ifstream         file(inputFileName, std::ios::binary | std::ios::ate);
   const std::streamsize inputBufferSize = file.tellg();
   file.seekg(0, std::ios::beg);
   std::vector<char> buffer(inputBufferSize);
@@ -63,8 +63,8 @@ doTest(const char * inputFileName, const char * outputFileName)
 
   // Read the zip-compressed bitstream from memory into an ITK image
   itk::OMEZarrNGFFImageIO::BufferInfo bufferInfo{ buffer.data(), buffer.size() };
-  const auto inputBufferPointer = buffer.data();
-  std::string memAddress = itk::OMEZarrNGFFImageIO::MakeMemoryFileName(bufferInfo);
+  const auto                          inputBufferPointer = buffer.data();
+  std::string                         memAddress = itk::OMEZarrNGFFImageIO::MakeMemoryFileName(bufferInfo);
 
   typename ReaderType::Pointer memReader = ReaderType::New();
   memReader->SetFileName(memAddress);
@@ -84,8 +84,8 @@ doTest(const char * inputFileName, const char * outputFileName)
   }
 
   // Verify a local copy of the buffer is maintained in the itk::Image
-  memImage->DisconnectPipeline(); // keep our local copy of the memory buffer
-  std::fill(buffer.begin(), buffer.end(), 0);   // reset the memory buffer in place
+  memImage->DisconnectPipeline();                  // keep our local copy of the memory buffer
+  std::fill(buffer.begin(), buffer.end(), 0);      // reset the memory buffer in place
   ITK_TRY_EXPECT_NO_EXCEPTION(comparer->Update()); // should not reflect buffer update
   if (comparer->GetNumberOfPixelsWithDifferences() > 0)
   {
