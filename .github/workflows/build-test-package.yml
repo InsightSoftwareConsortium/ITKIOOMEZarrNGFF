@@ -3,10 +3,9 @@ name: Build, test, package
 on: [push,pull_request]
 
 env:
-  itk-git-tag: "v5.4.0"
-  itk-wheel-tag: "v5.4.0"
-  # v5.4.0 + fixes
-  itk-python-package-tag: "c9bb40bcb9f99938d071435e46f44d3d2b389482"
+  itk-git-tag: "v5.4.7"
+  itk-wheel-tag: "v5.4.7"
+  itk-python-package-tag: "v5.4.7"
   itk-python-package-org: "InsightSoftwareConsortium"
   ctest-options: ""
 
@@ -172,7 +171,7 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        python3-minor-version: ["8", "9", "10", "11"]
+        python3-minor-version: ["9", "10", "11"]
         manylinux-platform: ["_2_28-x64"]
 
     steps:
@@ -271,7 +270,6 @@ jobs:
     - uses: ilammy/setup-nasm@v1
 
     - name: 'Fetch build script'
-      if: matrix.python3-minor-version != '8'
       run: |
         IPP_DOWNLOAD_GIT_TAG=${{ env.itk-python-package-tag }}
         IPP_DOWNLOAD_ORG=${{ env.itk-python-package-org }}
@@ -279,7 +277,6 @@ jobs:
         chmod u+x macpython-download-cache-and-build-module-wheels.sh
 
     - name: 'Build 🐍 Python 📦 package'
-      if: matrix.python3-minor-version != '8'
       shell: bash
       run: |
         rm -rf dist
@@ -298,7 +295,6 @@ jobs:
         python-version: "3.11"
 
     - name: Validate build output
-      if: matrix.python3-minor-version != '8'
       shell: bash
       run: |
         python -m pip install twine
@@ -316,7 +312,6 @@ jobs:
         python -m twine check ${WHEEL_PATTERN}
 
     - name: Publish Python package as GitHub Artifact
-      if: matrix.python3-minor-version != '8'
       uses: actions/upload-artifact@v4
       with:
         name: MacOSArmWheel3${{ matrix.python3-minor-version }}
@@ -327,7 +322,7 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        python3-minor-version: ["8", "9", "10", "11"]
+        python3-minor-version: ["9", "10", "11"]
 
     steps:
     - name: Get specific version of CMake, Ninja
