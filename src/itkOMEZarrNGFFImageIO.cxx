@@ -55,7 +55,7 @@ struct TypeList
 constexpr TypeList<int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double>
   supportedPixelTypes{};
 
-IOComponentEnum
+constexpr IOComponentEnum
 tensorstoreToITKComponentType(const tensorstore::DataType dtype)
 {
   switch (dtype.id())
@@ -97,7 +97,7 @@ tensorstoreToITKComponentType(const tensorstore::DataType dtype)
   }
 }
 
-tensorstore::DataType
+constexpr tensorstore::DataType
 itkToTensorstoreComponentType(const IOComponentEnum itkComponentType)
 {
   switch (itkComponentType)
@@ -172,6 +172,10 @@ MakePath(const int datasetIndex)
   return 's' + std::to_string(datasetIndex);
 }
 
+// Variable template, ensuring that tensorstoreToITKComponentType is evaluated at compile-time.
+template <typename T>
+constexpr IOComponentEnum toITKComponentType = tensorstoreToITKComponentType(tensorstore::dtype_v<T>);
+
 // Returns TensorStore KvStore driver name appropriate for this path.
 // Options are file, zip. TODO: http, gcs (GoogleCouldStorage), etc.
 std::string
@@ -243,7 +247,7 @@ ReadFromStoreIfTypesMatch(const IOComponentEnum              componentType,
                           const ImageIORegion &              storeIORegion,
                           void *                             buffer)
 {
-  if (tensorstoreToITKComponentType(tensorstore::dtype_v<TPixel>) == componentType)
+  if (toITKComponentType<TPixel> == componentType)
   {
     ReadFromStore(store, storeIORegion, static_cast<TPixel *>(buffer));
     return true;
@@ -274,7 +278,7 @@ WriteToStoreIfTypesMatch(const IOComponentEnum        componentType,
                          const std::vector<int64_t> & shape,
                          const void * const           buffer)
 {
-  if (tensorstoreToITKComponentType(tensorstore::dtype_v<TPixel>) == componentType)
+  if (toITKComponentType<TPixel> == componentType)
   {
     std::string dtype;
     // we prefer to write using our own endianness, so no conversion is necessary
